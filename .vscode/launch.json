@@ -1,0 +1,78 @@
+{
+    // Конфигурации запуска приложения (VS Code → Run and Debug).
+    //
+    // Как запускать:
+    //   1) Откройте панель Run and Debug (слева) или меню Run.
+    //   2) В выпадающем списке выберите конфигурацию:
+    //      - "Unibot" — с hot reload (перезапуск при изменении кода)
+    //      - "Unibot (без hot reload)" — без автоперезапуска
+    //   3) Нажмите нужную комбинацию:
+    //      - Windows / Linux:
+    //          F5 — запуск с отладкой (breakpoints)
+    //          Ctrl+F5 — запуск без отладки
+    //      - macOS:
+    //          F5 — запуск с отладкой (иногда нужно fn+F5)
+    //          Ctrl+F5 — запуск без отладки (иногда нужно fn+Ctrl+F5)
+    //
+    // Что запускается:
+    //   - FastAPI (uvicorn) на http://localhost:8000
+    //   - Telegram-бот в режиме polling (фоновая задача)
+    //
+    // Hot reload ("Unibot"):
+    //   - --reload-dir src — следим только за папкой src
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Unibot",
+            "type": "debugpy",
+            "request": "launch",
+            "python": ".venv\\Scripts\\python.exe",
+            "program": "${workspaceFolder}\\scripts\\run_dev.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.vscode/empty.env",
+            "justMyCode": true
+        },
+        {
+            "name": "Unibot (Uvicorn reload)",
+            "type": "debugpy",
+            "request": "launch",
+            "python": ".venv\\Scripts\\python.exe",
+            // uvicorn — ASGI-сервер для FastAPI
+            // src.main:app — путь к FastAPI-приложению (файл src/main.py, переменная app)
+            // --reload — автоматический перезапуск при изменении файлов
+            // --host 0.0.0.0 — доступ с любого IP (нужно для Docker/production)
+            // --port 8000 — порт сервера
+            "module": "uvicorn",
+            "args": [
+                "src.main:app",
+                "--reload",
+                "--reload-dir", ".",
+                "--reload-include", "*.py",
+                "--reload-include", ".env",
+                "--host", "0.0.0.0",
+                "--port", "8000"
+            ],
+            "console": "integratedTerminal",
+            "envFile": ".env",
+            // true — отладчик останавливается только в вашем коде
+            // false — можно заходить в библиотеки (aiogram, fastapi и т.д.)
+            "justMyCode": true
+        },
+        {
+            "name": "Unibot (без автоперезапуска)",
+            "type": "debugpy",
+            "request": "launch",
+            "python": ".venv\\Scripts\\python.exe",
+            "module": "uvicorn",
+            "args": [
+                "src.main:app",
+                "--host", "0.0.0.0",
+                "--port", "8000"
+            ],
+            "console": "integratedTerminal",
+            "envFile": ".env",
+            "justMyCode": true
+        }
+    ]
+}

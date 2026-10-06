@@ -1,0 +1,8 @@
+{% extends "sqladmin/create.html" %}
+
+{% block tail %}
+{{ super() }}
+
+{# Подключаем Telegram-редактор для поля message_text #}
+{% include 'sqladmin/_telegram_editor.html' %}
+{% endblock %}

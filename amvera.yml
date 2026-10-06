@@ -1,0 +1,24 @@
+# Конфигурация деплоя на Amvera Cloud
+# Документация: https://docs.amvera.ru/applications/configuration/config-file.html
+
+meta:
+  environment: python
+  toolchain:
+    name: pip
+    version: "3.11"
+
+build:
+  # Файл с зависимостями (pip install -r requirements.txt)
+  requirementsPath: requirements.txt
+  # Кеширование зависимостей между сборками (ускоряет деплой)
+  useCache: true
+
+run:
+  # Используем entrypoint.sh который:
+  # 1. Применяет миграции (alembic upgrade head)
+  # 2. Запускает приложение (uvicorn)
+  command: bash entrypoint.sh
+  containerPort: 8000
+  # Персистентное хранилище — данные сохраняются между деплоями
+  # База данных SQLite хранится в /data/bot.db
+  persistenceMount: /data

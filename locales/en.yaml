@@ -1,0 +1,793 @@
+# ==============================================================================
+# ENGLISH (en)
+# ==============================================================================
+#
+# This file contains all bot interface text strings in English.
+# When adding a new language, copy this file and translate all values.
+#
+# Format: key: value
+# Multi-line text: use | to preserve line breaks
+
+# ==============================================================================
+# GENERAL MESSAGES
+# ==============================================================================
+
+# Welcome message on /start
+# Shows a list of main available bot commands.
+# Some commands may be disabled in config.yaml.
+start_message: |
+  👋 <b>Hello! I'm an AI generation bot.</b>
+
+  📋 <b>Available commands:</b>
+
+  💬 /chatgpt — chat with AI
+  🎨 /imagine — generate images
+  ✏️ /edit_image — edit images
+  🗑️ /clear — clear chat history
+  💰 /balance — check your balance
+  ⚙️ /settings — settings
+  ❓ /help — help
+
+  💡 Start with /chatgpt or /imagine!
+
+# Message when selecting /language command
+language_command: "Choose your interface language:"
+
+# Message after successful language change
+# {language_name} — name of the selected language
+language_changed: "✅ Interface language changed to {language_name}"
+
+# ==============================================================================
+# LANGUAGE NAMES (for display in menu)
+# ==============================================================================
+
+language_name_ru: "🇷🇺 Russian"
+language_name_en: "🇬🇧 English"
+language_name_zh: "🇨🇳 Chinese"
+language_name_es: "🇪🇸 Spanish"
+language_name_fr: "🇫🇷 French"
+language_name_de: "🇩🇪 German"
+language_name_it: "🇮🇹 Italian"
+language_name_pt: "🇵🇹 Portuguese"
+language_name_ja: "🇯🇵 Japanese"
+language_name_ko: "🇰🇷 Korean"
+language_name_ar: "🇸🇦 Arabic"
+language_name_hi: "🇮🇳 Hindi"
+language_name_tr: "🇹🇷 Turkish"
+language_name_pl: "🇵🇱 Polish"
+
+# ==============================================================================
+# ERRORS
+# ==============================================================================
+
+# Unknown error
+error_unknown: "❌ An error occurred. Please try again."
+
+# Language not supported
+error_language_not_supported: "❌ This language is not supported yet."
+
+# User not found
+error_user_not_found: "❌ Error: user not found. Use /start to register."
+
+# Temporary DB error
+error_db_temporary: "❌ Temporary database error. Please try again in a few seconds."
+
+# Permanent DB error
+error_db_permanent: |
+  ❌ Database error.
+  Please try again or contact support.
+
+# Unexpected error
+error_unexpected: |
+  ❌ An unexpected error occurred.
+  Please try again or contact support.
+
+# AI generation error (unified key for all types)
+generation_error: |
+  ❌ Generation error.
+  Please try again or choose another model.
+
+# Unexpected error during generation (unified key for all types)
+generation_unexpected_error: |
+  ❌ An unexpected error occurred during generation.
+  Please try again or contact support.
+
+# Callback data not found
+error_callback_data: "❌ Error: data not found"
+
+# No available models (API keys not configured)
+# Shown when user tries to use a command,
+# but no models have configured providers for it.
+no_models_available: |
+  ❌ <b>Models unavailable</b>
+
+  API keys for this feature are not configured.
+  Please contact the bot administrator for setup.
+
+# Unknown command (when command is not registered or disabled)
+# Shown by fallback handler for any commands that weren't handled.
+# {command} — the command entered by user (without /)
+command_not_found: |
+  ❓ Command <code>/{command}</code> not found.
+
+  Use /help for the list of available commands.
+
+# Test error successfully triggered
+# Used by /error command to test monitoring system
+error_test_triggered: |
+  🔴 Test error successfully triggered!
+
+  This message confirms that:
+  • The /error command works
+  • The error has been logged in the terminal
+  • The monitoring system has been notified
+
+# ==============================================================================
+# CHATGPT (AI DIALOG)
+# ==============================================================================
+
+# Model selection message for chat
+chatgpt_choose_model: |
+  🤖 <b>Choose a model for dialogue:</b>
+
+  After selecting, you'll be able to chat with AI.
+  All previous messages will be considered in context.
+
+  💡 Use /clear to clear the dialogue history.
+
+# Model selection confirmation
+# {model_key} — selected model key
+chatgpt_model_selected: |
+  ✅ Model selected: <b>{model_key}</b>
+
+  Now send messages and AI will respond.
+  The entire dialogue history is saved and considered in responses.
+
+  🔄 To change model use /chatgpt
+  🗑 To clear history use /clear
+
+# Model not selected error
+chatgpt_model_not_selected: "❌ Error: model not selected. Use /chatgpt to start."
+
+# Response generation in progress
+chatgpt_generating: "⏳ Generating response..."
+
+# AI returned empty response
+chatgpt_empty_response: "❌ Error: AI returned an empty response. Please try again."
+
+# AI generation error
+# {error} — error message
+chatgpt_generation_error: |
+  ❌ Generation error: {error}
+
+  Please try again or choose another model via /chatgpt.
+
+# Unexpected error when processing message
+chatgpt_unexpected_error: |
+  ❌ An unexpected error occurred while processing your message.
+  Please try again or contact support.
+
+# AI generation error (used in base.py)
+# Key matches generation_type="chat" in ChatGenerationService
+# {error} — error message from AI provider
+chat_generation_error: |
+  ❌ Generation error: {error}
+
+  Please try again or choose another model via /chatgpt.
+
+# Unexpected error during generation (used in base.py)
+# Key matches generation_type="chat" in ChatGenerationService
+chat_unexpected_error: |
+  ❌ An unexpected error occurred while processing your message.
+  Please try again or contact support.
+
+# ==============================================================================
+# IMAGINE (IMAGE GENERATION)
+# ==============================================================================
+
+# Model selection message for images
+imagine_choose_model: |
+  🎨 <b>Choose a model for image generation:</b>
+
+  After selecting, you'll be able to enter a text description of the desired image.
+
+  💡 The more detailed the description, the better the result!
+
+# Model selection confirmation
+# {model_key} — selected model key
+imagine_model_selected: |
+  ✅ Model selected: <b>{model_key}</b>
+
+  Now describe the desired image in text.
+
+  📝 Examples:
+  • A majestic dragon flying over a medieval castle at sunset
+  • Cyberpunk city street with neon lights and rain
+  • Cute red panda eating bamboo in a forest
+
+  🔄 To choose another model use /imagine
+
+# Model not selected error
+imagine_model_not_selected: "❌ Error: model not selected. Use /imagine to start."
+
+# Image generation in progress
+imagine_generating: "⏳ Generating image..."
+
+# AI returned empty response
+imagine_empty_response: "❌ Error: AI returned an empty response. Please try again."
+
+# Image successfully generated
+# {model_key} — model key, {prompt} — request text (trimmed to 200 characters)
+imagine_generated: |
+  🎨 Image generated by model <b>{model_key}</b>
+
+  Prompt: {prompt}
+
+# AI generation error
+# {error} — error message
+imagine_generation_error: |
+  ❌ Generation error: {error}
+
+  Please try again or choose another model via /imagine.
+
+# Unexpected error when generating image
+imagine_unexpected_error: |
+  ❌ An unexpected error occurred while generating the image.
+  Please try again or contact support.
+
+# ==============================================================================
+# EDIT (IMAGE EDITING)
+# ==============================================================================
+
+# Message on /edit command — requesting image
+edit_send_image: |
+  ✏️ <b>Image Editing</b>
+
+  Send the image you want to edit.
+
+  💡 Photos in any format are supported (JPEG, PNG, etc.)
+
+# Message if user didn't send an image
+edit_please_send_image: |
+  ❌ Please send an image (photo).
+
+  Text messages are not processed at this stage.
+  Use /edit to start over.
+
+# No models available for editing
+edit_no_models_available: |
+  ❌ Image editing models are not configured.
+  Please contact the bot administrator.
+
+# Model selection message for editing
+edit_choose_model: |
+  ✅ Image received!
+
+  🎨 <b>Choose a model for editing:</b>
+
+  Different models have different capabilities and result quality.
+
+# Model selection confirmation
+# {model_key} — selected model key
+edit_model_selected: |
+  ✅ Model selected: <b>{model_key}</b>
+
+  Now describe what changes you want to make to the image.
+
+  📝 Examples:
+  • Blur the background
+  • Add sunglasses
+  • Change hair color to red
+  • Make it in anime style
+  • Remove unwanted objects in the background
+
+  🔄 To choose another model use /edit
+
+# Model not selected error
+edit_model_not_selected: "❌ Error: model not selected. Use /edit to start."
+
+# Image not found error
+edit_image_not_found: "❌ Error: image not found. Use /edit to start."
+
+# Image download error
+edit_image_download_error: "❌ Error downloading image. Please try again."
+
+# Editing in progress
+edit_processing: "⏳ Editing image..."
+
+# AI returned empty response
+edit_empty_response: "❌ Error: AI returned an empty response. Please try again."
+
+# Image successfully edited
+# {model_key} — model key, {prompt} — request text (trimmed to 200 characters)
+edit_completed: |
+  ✏️ Image edited by model <b>{model_key}</b>
+
+  Request: {prompt}
+
+# AI editing error
+# {error} — error message
+edit_generation_error: |
+  ❌ Editing error: {error}
+
+  Please try again or choose another model via /edit.
+
+# Unexpected error when editing
+edit_unexpected_error: |
+  ❌ An unexpected error occurred while editing the image.
+  Please try again or contact support.
+
+# ==============================================================================
+# CLEAR (HISTORY CLEARING)
+# ==============================================================================
+
+# History is already empty
+clear_history_empty: |
+  ℹ️ Dialogue history is already empty.
+
+  Use /chatgpt to start a new dialogue.
+
+# History cleared for specific model
+# {model_key} — model key, {deleted_count} — number of deleted messages
+clear_history_model: |
+  ✅ Dialogue history with model <b>{model_key}</b> cleared.
+
+  Messages deleted: {deleted_count}
+
+  You can continue the dialogue from scratch.
+
+# All history cleared
+# {deleted_count} — number of deleted messages
+clear_history_all: |
+  ✅ All dialogue history cleared.
+
+  Messages deleted: {deleted_count}
+
+  Use /chatgpt to start a new dialogue.
+
+# Unexpected error when clearing history
+clear_unexpected_error: |
+  ❌ An unexpected error occurred while clearing history.
+  Please try again or contact support.
+
+# ==============================================================================
+# BALANCE AND BILLING
+# ==============================================================================
+
+# Balance information (billing enabled, no subscription)
+# {balance} — current token balance
+balance_info: |
+  💰 <b>Your Balance</b>
+
+  Tokens: <b>{balance}</b> 💎
+
+  💡 Use tokens for text and image generation.
+
+# Balance information with active subscription
+# {subscription_name} — subscription name
+# {subscription_tokens} — subscription tokens
+# {balance} — main balance
+# {total_tokens} — total tokens
+# {period_end} — period end date
+# {auto_renewal} — auto renewal status
+balance_info_with_subscription: |
+  💰 <b>Your Balance</b>
+
+  📋 Subscription: <b>{subscription_name}</b>
+  ├ Subscription tokens: <b>{subscription_tokens}</b> 💎
+  ├ Main balance: <b>{balance}</b> 💎
+  └ Total: <b>{total_tokens}</b> 💎
+
+  📅 Period until: {period_end}
+  🔄 Auto-renewal: {auto_renewal}
+
+  💡 Subscription tokens are used first, then main balance.
+
+# Balance information (billing disabled)
+balance_info_disabled: |
+  💰 <b>Unlimited Mode</b>
+
+  ℹ️ Billing system is disabled. All generations are free.
+
+# Insufficient tokens for generation
+# {model_name} — model name, {price} — cost, {balance} — current balance
+billing_insufficient_balance: |
+  ❌ <b>Insufficient Tokens</b>
+
+  Model: {model_name}
+  Cost: {price} 💎
+  Your balance: {balance} 💎
+
+  💡 Top up your balance to continue.
+
+# Registration bonus
+# {amount} — number of tokens credited
+billing_registration_bonus: |
+  🎁 <b>Welcome!</b>
+
+  You've been credited <b>{amount}</b> 💎 tokens as a gift!
+
+  Use them for text and image generation.
+
+# ==============================================================================
+# TRANSACTION HISTORY
+# ==============================================================================
+
+# Transaction history title
+# {page} — current page, {total_pages} — total pages, {items} — transaction list
+history_title: |
+  📜 <b>Transaction History</b> (page {page}/{total_pages})
+
+  {items}
+
+# Single history entry
+# {date} — date, {type} — transaction type, {amount} — amount, {description} — description
+history_item: "{date} | {amount} 💎 | {description}"
+
+# History is empty
+history_empty: |
+  📜 <b>Transaction History</b>
+
+  No transactions yet.
+
+  Use /chatgpt or /imagine for your first generation!
+
+# "Back" button in pagination
+history_prev_page: "← Back"
+
+# "Next" button in pagination
+history_next_page: "Next →"
+
+# ==============================================================================
+# TRANSACTION TYPES (for display in history)
+# ==============================================================================
+
+# Registration bonus
+transaction_type_registration_bonus: "Registration bonus"
+
+# Generation (token deduction)
+transaction_type_generation: "Generation"
+
+# Token purchase
+transaction_type_purchase: "Token purchase"
+
+# Token refund
+transaction_type_refund: "Refund"
+
+# Admin manual adjustment
+transaction_type_admin_adjustment: "Adjustment"
+# Referral bonus
+transaction_type_referral_bonus: "Referral bonus"
+
+# ==============================================================================
+# TOKEN PURCHASE (via /balance)
+# ==============================================================================
+
+# Tariff selection
+buy_select_tariff: |
+  🛒 <b>Buy Tokens</b>
+
+  Select a token package:
+
+# Payment method selection
+# {tariff_name} — tariff name, {tokens} — number of tokens
+buy_select_provider: |
+  💳 <b>Payment Method</b>
+
+  Tariff: {tariff_name}
+  Tokens: {tokens} 💎
+
+  Select payment method:
+
+# Payment link (for YooKassa/Stripe)
+# {tariff_name} — tariff name, {tokens} — number of tokens, {url} — payment link
+buy_payment_link: |
+  💳 <b>Payment</b>
+
+  Tariff: {tariff_name}
+  Tokens: {tokens} 💎
+
+  Follow the link to pay:
+  {url}
+
+  ⏱ Link is valid for 30 minutes.
+
+# Invoice description (for Telegram Stars) — one-time purchase
+# {tokens} — number of tokens
+buy_invoice_description: "Top up balance with {tokens} tokens"
+
+# Invoice description (for Telegram Stars) — subscription
+# {tokens} — number of tokens per month
+buy_invoice_subscription_description: "Monthly subscription — {tokens} tokens/month"
+
+# Successful payment (one-time purchase)
+# {tokens} — number of tokens credited
+buy_success: |
+  ✅ <b>Payment successful!</b>
+
+  Credited: {tokens} 💎
+
+  Use tokens for text and image generation.
+
+# Subscription activated (first payment)
+# {tokens} — number of tokens per month
+buy_subscription_activated: |
+  ✅ <b>Subscription activated!</b>
+
+  Credited: {tokens} 💎 for the month
+
+  Your subscription will automatically renew every 30 days.
+  Manage your subscription in /settings
+
+# Subscription renewed (automatic payment)
+# {tokens} — number of tokens
+buy_subscription_renewed: |
+  ✅ <b>Subscription renewed!</b>
+
+  Credited: {tokens} 💎
+
+  Thank you for staying with us!
+
+# Purchase errors
+buy_no_providers: "❌ Payment methods not configured. Contact administrator."
+buy_no_tariffs: "❌ Tariffs not configured. Contact administrator."
+buy_tariff_not_found: "❌ Tariff not found."
+buy_provider_not_configured: "❌ Selected payment method not configured."
+buy_tariff_not_available_for_provider: "❌ Tariff not available for selected payment method."
+buy_payment_error: "❌ Payment creation error. Please try later."
+buy_error_no_url: "❌ Failed to get payment link."
+buy_payment_failed: "❌ Payment failed. Please try again."
+buy_payment_refunded: "💸 Refund of {amount} ⭐ Stars completed."
+
+# ==============================================================================
+# REFERRAL SYSTEM (/invite)
+# ==============================================================================
+
+# Main message with referral link and statistics
+# {link} — referral link
+# {total_referrals} — number of invited users
+# {total_earnings} — tokens earned
+# {inviter_bonus} — bonus per referral
+# {max_earnings} — maximum earnings (0 = unlimited)
+invite_info: |
+  👥 <b>Referral Program</b>
+
+  Your invitation link:
+  <code>{link}</code>
+
+  📊 <b>Statistics:</b>
+  • Friends invited: <b>{total_referrals}</b>
+  • Tokens earned: <b>{total_earnings}</b> 💎
+
+  💡 <b>Terms:</b>
+  • You get <b>{inviter_bonus}</b> 💎 for each friend
+
+  📤 Share your link with friends!
+
+# Referral program is disabled
+invite_disabled: |
+  ❌ Referral program is temporarily unavailable.
+
+# Pending bonuses (when require_payment=true)
+# {count} — number of pending bonuses
+invite_pending_bonuses: |
+  ⏳ <b>Pending:</b> {count} bonuses
+  (will be credited after the invitee's first purchase)
+
+# Maximum earnings reached
+invite_max_reached: |
+  ⚠️ You've reached the maximum earnings through the referral program.
+  Thank you for your active participation!
+
+# Bonus for invited user on registration
+# {amount} — number of tokens
+referral_invitee_bonus: |
+  🎁 <b>Invitation bonus!</b>
+
+  You've been credited <b>{amount}</b> 💎 for registering via referral link!
+
+# ==============================================================================
+# HELP (/help)
+# ==============================================================================
+
+# Message with support contact
+# {contact} — support contact from config.yaml (support.contact)
+help_message_with_contact: |
+  ❓ <b>Help</b>
+
+  This bot allows you to generate content using AI:
+  • 💬 /chatgpt — chat with AI
+  • 🎨 /imagine — image generation
+  • ✏️ /edit_image — image editing
+  • 💰 /balance — check token balance
+  • ⚙️ /settings — settings
+
+  📞 <b>Support:</b> {contact}
+
+  If you have any questions or issues — feel free to reach out!
+
+# Message without support contact (if support.contact is not set)
+help_message_no_contact: |
+  ❓ <b>Help</b>
+
+  This bot allows you to generate content using AI:
+  • 💬 /chatgpt — chat with AI
+  • 🎨 /imagine — image generation
+  • ✏️ /edit_image — image editing
+  • 💰 /balance — check token balance
+  • ⚙️ /settings — settings
+
+# ==============================================================================
+# SETTINGS (/settings)
+# ==============================================================================
+
+# Settings menu title
+settings_title: |
+  ⚙️ <b>Settings</b>
+
+  Select a parameter to change:
+
+# Language change button
+settings_language_button: "🌍 Interface language"
+
+# Subscription management button (will be used later)
+settings_subscription_button: "📦 Manage subscription"
+
+# "Back" button to return to settings menu
+settings_back_button: "← Back"
+
+# Message if no settings are available
+settings_no_options: |
+  ⚙️ <b>Settings</b>
+
+  There are no available settings to change at the moment.
+
+# Language change confirmation in settings
+# {language_name} — name of the selected language
+settings_language_changed: |
+  ✅ Interface language changed to <b>{language_name}</b>
+
+  Select another parameter or close the menu:
+
+# Subscription management
+# {tariff_name} — tariff name, {period_end} — end date, {tokens_remaining} — remaining tokens
+settings_subscription_info: |
+  📦 <b>Subscription</b>
+
+  Plan: {tariff_name}
+  Tokens: {tokens_remaining} 💎
+  Until: {period_end}
+  Auto-renewal: {auto_renewal}
+
+# Cancel subscription button
+settings_subscription_cancel_button: "❌ Cancel subscription"
+
+# Enable auto-renewal button
+settings_subscription_enable_auto_renewal_button: "✅ Enable auto-renewal"
+
+# Subscription cancellation confirmation
+settings_subscription_cancel_confirm: |
+  ⚠️ <b>Confirm Cancellation</b>
+
+  Are you sure you want to cancel your subscription?
+
+  The subscription will remain active until {period_end}, then it will not be automatically renewed.
+
+# Confirmation button
+settings_subscription_cancel_confirm_yes: "✅ Yes, cancel"
+
+# Cancel button
+settings_subscription_cancel_confirm_no: "← Back"
+
+# Subscription successfully canceled
+settings_subscription_canceled: |
+  ✅ Subscription canceled
+
+  The subscription will be active until {period_end}, after which it will automatically end.
+
+  You can re-enable auto-renewal at any time.
+
+# Auto-renewal enabled
+settings_subscription_auto_renewal_enabled: |
+  ✅ Auto-renewal enabled
+
+  The subscription will automatically renew after {period_end}.
+
+# Subscription restore failed (for Telegram Stars)
+settings_subscription_restore_failed: |
+  ❌ Failed to restore subscription.
+  The subscription may have already expired.
+
+# Message if no active subscription
+settings_subscription_none: |
+  📦 <b>Subscription</b>
+
+  You don't have an active subscription.
+
+  You can purchase a subscription in /balance
+
+# ==============================================================================
+# LEGAL DOCUMENTS (/terms)
+# ==============================================================================
+
+# /terms command message — showing document links
+legal_documents_message: |
+  📜 <b>Legal Documents</b>
+
+  Please review the terms of service:
+
+# "Privacy Policy" button
+legal_privacy_policy_button: "🔒 Privacy Policy"
+
+# "Terms of Service" button
+legal_terms_of_service_button: "📋 Terms of Service"
+
+# "Accept" button
+legal_accept_button: "✅ I Accept the Terms"
+
+# Terms acceptance request (shown on first /start)
+legal_acceptance_request: |
+  📜 <b>Welcome!</b>
+
+  Before you start, please review our legal documents:
+
+  • <b>Privacy Policy</b> — how we handle your data
+  • <b>Terms of Service</b> — conditions for using the service
+
+  By clicking "I Accept the Terms", you confirm that you have read and agree to these documents.
+
+# Notification after clicking "Accept" (popup)
+legal_accepted_notification: "✅ Thank you! Terms accepted."
+
+# Message after accepting terms
+legal_accepted_message: |
+  ✅ <b>Terms Accepted</b>
+
+  Thank you for reviewing the documents!
+  You can now use all bot features.
+
+# Message if user already accepted terms
+legal_already_accepted: "You have already accepted these terms"
+
+# Message if legal documents are disabled
+legal_disabled: |
+  ℹ️ Legal documents are currently unavailable.
+
+# Message if document links are not configured
+legal_not_configured: |
+  ⚠️ Legal documents are not yet configured.
+
+  Please contact the bot administrator.
+
+# ==============================================================================
+# CHANNEL SUBSCRIPTION
+# ==============================================================================
+
+# Message when user is not subscribed to required channel
+# Shown when user tries to use the bot without subscription
+channel_subscription_required: |
+  ⚠️ <b>Subscription Required</b>
+
+  To use this bot, you need to subscribe to our channel.
+
+  After subscribing, please click the "Check subscription" button.
+
+# Text for the button to go to the channel
+channel_subscription_button: "📢 Subscribe to Channel"
+
+# Text for the check subscription button (callback)
+channel_subscription_check_button: "🔄 Check subscription"
+
+# Message when user clicked "Check subscription" but is not subscribed
+channel_subscription_not_subscribed: |
+  ❌ You are not subscribed to the channel yet.
+
+  Please subscribe to the channel and click the check button again.
+
+# Message after successful subscription
+# Shown when user subscribed and clicked "Check subscription"
+channel_subscription_thanks: |
+  ✅ Thank you for subscribing!
+
+  Now you can use the bot.
+  Press /start to begin.

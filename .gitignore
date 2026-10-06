@@ -1,0 +1,72 @@
+# Environment
+.env
+.venv
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# VSCode — игнорируем всё, кроме launch.json (настройки запуска для команды)
+# launch.json — единая конфигурация запуска проекта, должна быть в репозитории
+# settings.json — личные настройки редактора, у каждого свои
+.vscode/*
+!.vscode/launch.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+
+# Data (база данных, медиафайлы)
+# Содержимое папки игнорируется, но структура сохраняется через .gitkeep
+data
+data/*
+!data/.gitkeep
+!data/media/
+data/media/*
+!data/media/.gitkeep
+!data/media/images/
+data/media/images/*
+!data/media/images/.gitkeep
+!data/media/videos/
+data/media/videos/*
+!data/media/videos/.gitkeep
+
+.claude/
+coverage.json
+.DS_Store
+.agent/

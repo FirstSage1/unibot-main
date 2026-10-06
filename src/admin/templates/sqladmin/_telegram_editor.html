@@ -1,0 +1,494 @@
+{# Telegram-редактор для поля message_text рассылок #}
+{# Используется в broadcast_edit.html и broadcast_create.html #}
+
+<style>
+/* Контейнер редактора */
+.tg-editor-container {
+  margin-bottom: 1rem;
+}
+
+/* Toolbar */
+.tg-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-bottom: none;
+  border-radius: 0.375rem 0.375rem 0 0;
+  flex-wrap: wrap;
+}
+
+.tg-editor-toolbar .btn-group {
+  display: flex;
+  gap: 0.125rem;
+}
+
+.tg-editor-toolbar .btn {
+  min-width: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.tg-editor-toolbar .btn-bold {
+  font-weight: 700;
+}
+
+.tg-editor-toolbar .btn-italic {
+  font-style: italic;
+}
+
+.tg-editor-toolbar .btn-underline {
+  text-decoration: underline;
+}
+
+.tg-editor-toolbar .btn-strike {
+  text-decoration: line-through;
+}
+
+.tg-editor-toolbar .btn-code {
+  font-family: monospace;
+}
+
+/* Счётчик символов */
+.tg-char-counter {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: #e9ecef;
+}
+
+.tg-char-counter.warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.tg-char-counter.danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Textarea с редактором получает особые стили */
+.tg-editor-textarea {
+  border-radius: 0 !important;
+  border-top: none !important;
+  min-height: 150px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* Preview */
+.tg-editor-preview-container {
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  background: #f8f9fa;
+}
+
+.tg-editor-preview-header {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: #6c757d;
+  border-bottom: 1px solid #dee2e6;
+  background: #f1f3f5;
+}
+
+.tg-editor-preview {
+  padding: 1rem;
+  background: #fff;
+  min-height: 60px;
+  border-radius: 0 0 0.375rem 0.375rem;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Стили для форматированного текста в превью */
+.tg-editor-preview code {
+  background: #e9ecef;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875em;
+}
+
+.tg-editor-preview pre {
+  background: #2d2d2d;
+  color: #f8f8f2;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.875em;
+  margin: 0.5rem 0;
+}
+
+.tg-editor-preview a {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+/* Спойлер */
+.tg-editor-preview tg-spoiler,
+.tg-editor-preview .tg-spoiler {
+  background: #6c757d;
+  color: #6c757d;
+  border-radius: 0.25rem;
+  padding: 0 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tg-editor-preview tg-spoiler:hover,
+.tg-editor-preview .tg-spoiler:hover,
+.tg-editor-preview tg-spoiler.revealed,
+.tg-editor-preview .tg-spoiler.revealed {
+  background: transparent;
+  color: inherit;
+}
+
+/* Предупреждения */
+.tg-editor-warnings {
+  margin-top: 0.5rem;
+}
+
+.tg-editor-warning {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: #fff3cd;
+  color: #856404;
+  margin-bottom: 0.25rem;
+}
+
+/* Помощь */
+.tg-editor-help {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.tg-editor-help code {
+  background: #e9ecef;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  // Ждём полной загрузки DOM
+  document.addEventListener('DOMContentLoaded', function() {
+    // Находим textarea для текста сообщения
+    const textarea = document.querySelector('textarea[name="message_text"]');
+    if (!textarea) return;
+
+    initTelegramEditor(textarea);
+  });
+
+  // Конфигурация кнопок форматирования
+  const TELEGRAM_BUTTONS = [
+    { key: 'b', label: 'B', title: 'Жирный (Ctrl+B)', tag: 'b', className: 'btn-bold' },
+    { key: 'i', label: 'I', title: 'Курсив (Ctrl+I)', tag: 'i', className: 'btn-italic' },
+    { key: 'u', label: 'U', title: 'Подчёркнутый (Ctrl+U)', tag: 'u', className: 'btn-underline' },
+    { key: 's', label: 'S', title: 'Зачёркнутый', tag: 's', className: 'btn-strike' },
+    { key: 'code', label: '&lt;/&gt;', title: 'Код', tag: 'code', className: 'btn-code' },
+    { key: 'pre', label: 'PRE', title: 'Блок кода', tag: 'pre', className: '' },
+    { key: 'link', label: '&#128279;', title: 'Ссылка (Ctrl+K)', tag: 'a', className: '' },
+    { key: 'spoiler', label: '&#128065;', title: 'Спойлер', tag: 'tg-spoiler', className: '' },
+  ];
+
+  const MAX_LENGTH = 4096;
+
+  // Разрешённые HTML-теги для Telegram
+  const ALLOWED_TAGS = [
+    'b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del',
+    'code', 'pre', 'a', 'tg-spoiler', 'tg-emoji'
+  ];
+
+  function initTelegramEditor(textarea) {
+    // Создаём контейнер редактора
+    const container = document.createElement('div');
+    container.className = 'tg-editor-container';
+
+    // Находим родительский контейнер поля
+    const formGroup = textarea.closest('.mb-3') || textarea.parentElement;
+
+    // Создаём toolbar
+    const toolbar = createToolbar(textarea);
+    container.appendChild(toolbar);
+
+    // Перемещаем textarea в контейнер
+    const textareaParent = textarea.parentElement;
+    textarea.classList.add('tg-editor-textarea', 'form-control');
+    container.appendChild(textarea);
+
+    // Создаём preview
+    const previewContainer = createPreview();
+    container.appendChild(previewContainer);
+
+    // Создаём контейнер для предупреждений
+    const warningsContainer = document.createElement('div');
+    warningsContainer.className = 'tg-editor-warnings';
+    warningsContainer.id = 'tg-warnings';
+    container.appendChild(warningsContainer);
+
+    // Добавляем подсказку
+    const help = document.createElement('div');
+    help.className = 'tg-editor-help';
+    help.innerHTML = 'Поддерживаемые теги: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, ' +
+      '<code>&lt;u&gt;</code>, <code>&lt;s&gt;</code>, <code>&lt;code&gt;</code>, ' +
+      '<code>&lt;pre&gt;</code>, <code>&lt;a href="..."&gt;</code>, <code>&lt;tg-spoiler&gt;</code>. ' +
+      'Для переноса строки используйте Enter (\\n).';
+    container.appendChild(help);
+
+    // Вставляем контейнер
+    textareaParent.appendChild(container);
+
+    // Обработчики событий
+    textarea.addEventListener('input', function() {
+      updatePreview(textarea);
+      updateCharCounter(textarea);
+      validateHtml(textarea);
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+      handleKeyboardShortcuts(e, textarea);
+    });
+
+    // Инициализируем состояние
+    updatePreview(textarea);
+    updateCharCounter(textarea);
+    validateHtml(textarea);
+  }
+
+  function createToolbar(textarea) {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'tg-editor-toolbar';
+
+    // Группа кнопок форматирования
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group';
+
+    TELEGRAM_BUTTONS.forEach(function(btn) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-sm btn-outline-secondary ' + btn.className;
+      button.innerHTML = btn.label;
+      button.title = btn.title;
+      button.setAttribute('data-tag', btn.tag);
+
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        wrapSelection(textarea, btn.tag);
+      });
+
+      btnGroup.appendChild(button);
+    });
+
+    toolbar.appendChild(btnGroup);
+
+    // Счётчик символов
+    const counter = document.createElement('span');
+    counter.className = 'tg-char-counter';
+    counter.id = 'tg-char-counter';
+    counter.textContent = '0/' + MAX_LENGTH;
+    toolbar.appendChild(counter);
+
+    return toolbar;
+  }
+
+  function createPreview() {
+    const container = document.createElement('div');
+    container.className = 'tg-editor-preview-container';
+
+    const header = document.createElement('div');
+    header.className = 'tg-editor-preview-header';
+    header.textContent = 'Превью сообщения (нажмите на спойлер чтобы раскрыть)';
+    container.appendChild(header);
+
+    const preview = document.createElement('div');
+    preview.className = 'tg-editor-preview';
+    preview.id = 'tg-preview';
+    container.appendChild(preview);
+
+    // Обработчик клика на спойлеры
+    preview.addEventListener('click', function(e) {
+      if (e.target.tagName.toLowerCase() === 'tg-spoiler' ||
+          e.target.classList.contains('tg-spoiler')) {
+        e.target.classList.toggle('revealed');
+      }
+    });
+
+    return container;
+  }
+
+  function wrapSelection(textarea, tagName) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+
+    let wrapped;
+    let cursorOffset = 0;
+
+    if (tagName === 'a') {
+      const url = prompt('Введите URL:', 'https://');
+      if (!url || url === 'https://') return;
+      const linkText = selected || 'ссылка';
+      wrapped = '<a href="' + url + '">' + linkText + '</a>';
+      cursorOffset = selected ? 0 : -4; // Позиция перед </a>
+    } else {
+      wrapped = '<' + tagName + '>' + selected + '</' + tagName + '>';
+      cursorOffset = selected ? 0 : -(tagName.length + 3); // Позиция между тегами
+    }
+
+    // Заменяем текст
+    textarea.value = text.substring(0, start) + wrapped + text.substring(end);
+
+    // Устанавливаем курсор
+    const newPosition = start + wrapped.length + cursorOffset;
+    textarea.setSelectionRange(newPosition, newPosition);
+    textarea.focus();
+
+    // Обновляем UI
+    updatePreview(textarea);
+    updateCharCounter(textarea);
+    validateHtml(textarea);
+
+    // Генерируем событие input для корректной работы форм
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function handleKeyboardShortcuts(e, textarea) {
+    // Ctrl/Cmd + B = Bold
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      e.preventDefault();
+      wrapSelection(textarea, 'b');
+    }
+    // Ctrl/Cmd + I = Italic
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      e.preventDefault();
+      wrapSelection(textarea, 'i');
+    }
+    // Ctrl/Cmd + U = Underline
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+      e.preventDefault();
+      wrapSelection(textarea, 'u');
+    }
+    // Ctrl/Cmd + K = Link
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      wrapSelection(textarea, 'a');
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function updatePreview(textarea) {
+    const text = textarea.value;
+    const preview = document.getElementById('tg-preview');
+    if (!preview) return;
+
+    // Экранируем весь HTML
+    let safe = escapeHtml(text);
+
+    // Возвращаем разрешённые теги
+    ALLOWED_TAGS.forEach(function(tag) {
+      // Открывающий тег с атрибутами (для <a href="...">)
+      const openTagRegex = new RegExp('&lt;' + tag + '(\\s[^&]*)?&gt;', 'gi');
+      safe = safe.replace(openTagRegex, function(match) {
+        return match
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&');
+      });
+
+      // Закрывающий тег
+      const closeTagRegex = new RegExp('&lt;/' + tag + '&gt;', 'gi');
+      safe = safe.replace(closeTagRegex, '</' + tag + '>');
+    });
+
+    // Заменяем переносы строк на <br> для отображения
+    safe = safe.replace(/\n/g, '<br>');
+
+    preview.innerHTML = safe;
+  }
+
+  function updateCharCounter(textarea) {
+    const count = textarea.value.length;
+    const counter = document.getElementById('tg-char-counter');
+    if (!counter) return;
+
+    counter.textContent = count + '/' + MAX_LENGTH;
+
+    // Убираем старые классы
+    counter.classList.remove('warning', 'danger');
+
+    // Добавляем класс в зависимости от количества
+    if (count > MAX_LENGTH) {
+      counter.classList.add('danger');
+    } else if (count > MAX_LENGTH * 0.9) {
+      counter.classList.add('warning');
+    }
+  }
+
+  function validateHtml(textarea) {
+    const html = textarea.value;
+    const warnings = [];
+    const warningsContainer = document.getElementById('tg-warnings');
+    if (!warningsContainer) return;
+
+    // Проверяем на <br> (не поддерживается)
+    if (/<br\s*\/?>/i.test(html)) {
+      warnings.push('Тег &lt;br&gt; не поддерживается в Telegram. Используйте Enter для переноса строки.');
+    }
+
+    // Проверяем на неизвестные теги
+    const tagMatches = html.match(/<([a-z][a-z0-9-]*)[^>]*>/gi) || [];
+    const unknownTags = new Set();
+
+    tagMatches.forEach(function(tag) {
+      const match = tag.match(/<([a-z][a-z0-9-]*)/i);
+      if (match) {
+        const tagName = match[1].toLowerCase();
+        if (ALLOWED_TAGS.indexOf(tagName) === -1) {
+          unknownTags.add(tagName);
+        }
+      }
+    });
+
+    unknownTags.forEach(function(tag) {
+      warnings.push('Тег &lt;' + tag + '&gt; не поддерживается в Telegram.');
+    });
+
+    // Проверяем на незакрытые теги (базовая проверка)
+    ALLOWED_TAGS.forEach(function(tag) {
+      if (tag === 'tg-emoji') return; // tg-emoji может быть самозакрывающимся
+
+      const openCount = (html.match(new RegExp('<' + tag + '(\\s|>)', 'gi')) || []).length;
+      const closeCount = (html.match(new RegExp('</' + tag + '>', 'gi')) || []).length;
+
+      if (openCount > closeCount) {
+        warnings.push('Не закрыт тег &lt;' + tag + '&gt;.');
+      } else if (closeCount > openCount) {
+        warnings.push('Лишний закрывающий тег &lt;/' + tag + '&gt;.');
+      }
+    });
+
+    // Отображаем предупреждения
+    warningsContainer.innerHTML = warnings.map(function(w) {
+      return '<div class="tg-editor-warning">' + w + '</div>';
+    }).join('');
+  }
+})();
+</script>
