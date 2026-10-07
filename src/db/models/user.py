@@ -8,7 +8,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, String, func
+from sqlalchemy import BigInteger, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing_extensions import override
 
@@ -90,6 +90,9 @@ class User(Base):
     # Например: t.me/bot?start=promo_winter → source="promo_winter"
     # Полезно для аналитики: какие каналы привлечения работают
     source: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Внутренняя заметка администратора, не показывается пользователю
+    admin_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Баланс внутренних токенов
     # default=0 — новые пользователи начинают с нуля

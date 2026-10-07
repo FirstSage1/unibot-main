@@ -293,6 +293,7 @@ class UserAdmin(ModelView, model=User):
         User.language: "Язык",
         User.created_at: "Дата регистрации",
         User.source: "Источник (start=)",
+        User.admin_comment: "Комментарий администратора",
         User.balance: "Баланс",
         User.is_blocked: "Заблокирован",
         User.terms_accepted_at: "Дата принятия оферты",
@@ -309,6 +310,7 @@ class UserAdmin(ModelView, model=User):
         User.language,
         User.created_at,
         User.source,
+        User.admin_comment,
     ]
 
     # Колонки для поиска
@@ -354,6 +356,7 @@ class UserAdmin(ModelView, model=User):
             ADMIN_TIMEZONE,
         ),
         User.is_blocked: lambda m, a: "Да" if m.is_blocked else "Нет",
+        User.admin_comment: lambda m, a: m.admin_comment or "—",
         User.language: lambda m, a: {
             "ru": "Русский",
             "en": "English",
@@ -373,6 +376,7 @@ class UserAdmin(ModelView, model=User):
             fmt="%d.%m.%Y %H:%M:%S",
         ),
         User.is_blocked: lambda m, a: "Да" if m.is_blocked else "Нет",
+        User.admin_comment: lambda m, a: m.admin_comment or "—",
         User.language: lambda m, a: {
             "ru": "Русский",
             "en": "English",
@@ -386,6 +390,7 @@ class UserAdmin(ModelView, model=User):
         User.username,
         User.first_name,
         User.last_name,
+        User.admin_comment,
         User.language,
         User.balance,
         User.is_blocked,
@@ -406,12 +411,18 @@ class UserAdmin(ModelView, model=User):
         User.last_name,
         User.language,
         User.source,
+        User.admin_comment,
         User.balance,
         User.is_blocked,
     ]
 
     # Описания полей в форме редактирования
     form_args = {
+        "admin_comment": {
+            "description": (
+                "Внутренняя заметка администратора. Пользователь её не видит."
+            ),
+        },
         "source": {
             "description": (
                 "Параметр start= из ссылки t.me/bot?start=VALUE "
@@ -420,6 +431,11 @@ class UserAdmin(ModelView, model=User):
                 "Например: instagram, youtube, friend123"
             ),
         },
+    }
+
+    # Делаем многострочное поле удобным для внутренних заметок.
+    form_widget_args = {
+        "admin_comment": {"rows": 5, "placeholder": "Комментарий для администраторов"},
     }
 
     # Сколько записей на странице
