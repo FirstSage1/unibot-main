@@ -219,6 +219,7 @@ def setup_bot(
         >>> ai_service = create_ai_service()
         >>> setup_bot(dp, yaml_config, ai_service, bot, settings.channel)
     """
+    dp["ai_service"] = ai_service
     setup_middlewares(dp, yaml_config, ai_service, bot, channel_settings)
     setup_error_handlers(dp)
     setup_handlers(dp)

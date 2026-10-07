@@ -21,6 +21,7 @@ start_message: |
   📋 <b>Available commands:</b>
 
   💬 /chatgpt — chat with AI
+  📝 /generate — product description for marketplaces
   🎨 /imagine — generate images
   ✏️ /edit_image — edit images
   🗑️ /clear — clear chat history
@@ -597,6 +598,7 @@ help_message_with_contact: |
 
   This bot allows you to generate content using AI:
   • 💬 /chatgpt — chat with AI
+  • 📝 /generate — product description for marketplaces
   • 🎨 /imagine — image generation
   • ✏️ /edit_image — image editing
   • 💰 /balance — check token balance
@@ -612,6 +614,7 @@ help_message_no_contact: |
 
   This bot allows you to generate content using AI:
   • 💬 /chatgpt — chat with AI
+  • 📝 /generate — product description for marketplaces
   • 🎨 /imagine — image generation
   • ✏️ /edit_image — image editing
   • 💰 /balance — check token balance

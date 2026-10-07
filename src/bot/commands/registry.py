@@ -313,6 +313,13 @@ def get_command_registry() -> CommandRegistry:
         ),
     )
 
+    _registry.register(
+        name="generate",
+        router_factory=lambda: (
+            __import__("src.bot.handlers.generate", fromlist=["router"]).router
+        ),
+    )
+
     # /imagine — генерация изображений
     _registry.register(
         name="imagine",

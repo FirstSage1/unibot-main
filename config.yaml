@@ -324,6 +324,12 @@ limits:
 # Порядок команд в этом разделе определяет порядок в меню Telegram.
 
 commands:
+  generate:
+    enabled: true
+    show_in_menu: true
+    menu_description:
+      ru: "Описание товара"
+      en: "Product description"
   # /start — перезапуск бота и список доступных команд
   # ПЕРВАЯ команда в меню бота (порядок регистрации задаётся в registry.py).
   # При вызове:
@@ -461,8 +467,8 @@ commands:
   #   - Скрыть из меню: show_in_menu: false
   #   - Полностью отключить: enabled: false
   error:
-    enabled: true
-    show_in_menu: true
+    enabled: false
+    show_in_menu: false
     menu_description:
       ru: "⚠️ Тестовая ошибка"
       en: "⚠️ Test error"
