@@ -100,7 +100,7 @@ class User(Base):
     balance: Mapped[int] = mapped_column(default=0, nullable=False)
 
     # Заблокирован ли пользователь
-    # True — бот не отвечает на сообщения этого пользователя
+    # True — бот отвечает «Вы забанены» и не выполняет команды пользователя
     is_blocked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # Согласие с офертой

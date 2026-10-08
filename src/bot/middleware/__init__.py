@@ -17,6 +17,11 @@ Middleware обрабатывают входящие события перед �
 - create_legal_consent_middleware: Factory function для создания middleware
 """
 
+from src.bot.middleware.blocked_user import (
+    BLOCKED_USER_MESSAGE,
+    BlockedUserMiddleware,
+    create_blocked_user_middleware,
+)
 from src.bot.middleware.channel_subscription import (
     CALLBACK_CHECK_SUBSCRIPTION,
     ChannelSubscriptionMiddleware,
@@ -35,13 +40,16 @@ from src.bot.middleware.private_chat import PrivateChatMiddleware
 from src.core.exceptions import CooldownError
 
 __all__ = [
+    "BLOCKED_USER_MESSAGE",
     "CALLBACK_CHECK_SUBSCRIPTION",
+    "BlockedUserMiddleware",
     "ChannelSubscriptionMiddleware",
     "CooldownError",
     "GenerationCooldownMiddleware",
     "LanguageMiddleware",
     "LegalConsentMiddleware",
     "PrivateChatMiddleware",
+    "create_blocked_user_middleware",
     "create_channel_subscription_middleware",
     "create_language_middleware",
     "create_legal_consent_middleware",

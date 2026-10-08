@@ -24,6 +24,7 @@ from src.bot.middleware import (
     GenerationCooldownMiddleware,
     LegalConsentMiddleware,
     PrivateChatMiddleware,
+    create_blocked_user_middleware,
     create_language_middleware,
 )
 from src.config.yaml_config import YamlConfig
@@ -49,10 +50,11 @@ def setup_middlewares(
 
     Порядок регистрации важен:
     1. PrivateChatMiddleware — фильтрует сообщения только из личных чатов (ПЕРВЫЙ!)
-    2. LanguageMiddleware — определяет язык пользователя
-    3. ChannelSubscriptionMiddleware — проверяет подписку на канал (требует l10n)
-    4. LegalConsentMiddleware — проверяет согласие с юр. документами (требует l10n)
-    5. GenerationCooldownMiddleware — контролирует cooldown между генерациями
+    2. BlockedUserMiddleware — проверяет бан до фильтров и обработчиков
+    3. LanguageMiddleware — определяет язык пользователя
+    4. ChannelSubscriptionMiddleware — проверяет подписку на канал (требует l10n)
+    5. LegalConsentMiddleware — проверяет согласие с юр. документами (требует l10n)
+    6. GenerationCooldownMiddleware — контролирует cooldown между генерациями
 
     Args:
         dp: Диспетчер aiogram.
@@ -67,9 +69,15 @@ def setup_middlewares(
     # PrivateChatMiddleware должен быть ПЕРВЫМ — игнорирует сообщения из групп/каналов
     # Согласно PRD 4.5: "Бот работает только в личных сообщениях"
     private_chat_middleware = PrivateChatMiddleware()
-    dp.message.middleware(private_chat_middleware)
-    dp.callback_query.middleware(private_chat_middleware)
+    dp.message.outer_middleware(private_chat_middleware)
+    dp.callback_query.outer_middleware(private_chat_middleware)
     registered_middlewares.append("PrivateChatMiddleware")
+
+    # Проверяем бан до подписки, согласия и бизнес-обработчиков.
+    blocked_user_middleware = create_blocked_user_middleware()
+    dp.message.outer_middleware(blocked_user_middleware)
+    dp.callback_query.outer_middleware(blocked_user_middleware)
+    registered_middlewares.append("BlockedUserMiddleware")
 
     # LanguageMiddleware — определяет язык до выполнения handlers
     language_middleware = create_language_middleware()

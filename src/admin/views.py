@@ -307,6 +307,7 @@ class UserAdmin(ModelView, model=User):
         User.username,
         User.first_name,
         User.balance,
+        User.is_blocked,
         User.language,
         User.created_at,
         User.source,
@@ -418,6 +419,12 @@ class UserAdmin(ModelView, model=User):
 
     # Описания полей в форме редактирования
     form_args = {
+        "is_blocked": {
+            "description": (
+                "Запретить использование бота. На сообщения пользователь получит "
+                "ответ «Вы забанены». Снимите флаг, чтобы разблокировать."
+            ),
+        },
         "admin_comment": {
             "description": (
                 "Внутренняя заметка администратора. Пользователь её не видит."
