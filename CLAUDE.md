@@ -132,6 +132,7 @@ class AIService:
     def __init__(self, provider: AIProvider, billing: BillingService):
         self._provider = provider
 
+
 # ❌ Запрещено
 def send_message(text: str):
     bot = Bot(token=settings.TOKEN)  # Создание внутри функции

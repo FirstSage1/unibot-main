@@ -338,6 +338,17 @@ class TelegramHandler(logging.Handler):
         # Текст сообщения (экранируем HTML)
         text = self._escape_html(record.getMessage())
 
+        if record.name == "aiogram.dispatcher" and record.getMessage().startswith(
+            "Failed to fetch updates - TelegramNetworkError:"
+        ):
+            text = (
+                "Не удалось получить сообщения от Telegram из-за сбоя соединения. "
+                "Бот автоматически повторяет подключение. "
+                "Это уведомление само по себе не означает остановку бота. "
+                "Если бот перестал отвечать, проверьте логи и доступность Telegram."
+                f"\n\n<b>Технические подробности:</b>\n{text}"
+            )
+
         # Добавляем traceback если есть
         if record.exc_info:
             tb = "".join(traceback.format_exception(*record.exc_info))
