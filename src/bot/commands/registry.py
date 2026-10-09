@@ -336,6 +336,14 @@ def get_command_registry() -> CommandRegistry:
         ),
     )
 
+    # /card — создание рекламного фото товара в жизненном контексте
+    _registry.register(
+        name="card",
+        router_factory=lambda: (
+            __import__("src.bot.handlers.card", fromlist=["router"]).router
+        ),
+    )
+
     # /clear — очистка истории диалога
     _registry.register(
         name="clear",

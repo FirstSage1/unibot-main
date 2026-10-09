@@ -10,8 +10,9 @@ FSM используется для управления многошаговы�
 6. Бот генерирует ответ и возвращается в состояние waiting_for_message
 """
 
+from src.bot.states.card import CardStates
 from src.bot.states.chatgpt import ChatGPTStates
 from src.bot.states.edit_image import EditImageStates
 from src.bot.states.imagine import ImagineStates
 
-__all__ = ["ChatGPTStates", "EditImageStates", "ImagineStates"]
+__all__ = ["CardStates", "ChatGPTStates", "EditImageStates", "ImagineStates"]

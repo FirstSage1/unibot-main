@@ -50,7 +50,7 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 # Модули с FSM роутерами (экспортируют fsm_router помимо router)
-FSM_MODULES = ["chatgpt", "imagine", "edit_image", "generate"]
+FSM_MODULES = ["chatgpt", "imagine", "edit_image", "card", "generate"]
 
 
 def get_main_router(commands_config: CommandsConfig | None = None) -> Router:

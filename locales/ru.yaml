@@ -293,6 +293,33 @@ edit_completed: |
 
   Запрос: {prompt}
 
+# /card — создание рекламного фото товара в жизненном контексте
+card_send_photo: |
+  🛍 <b>Фото товара для маркетплейса</b>
+
+  Отправьте фотографию товара. Я создам рекламный визуал с ним в реальной сцене.
+card_please_send_photo: "❌ Пожалуйста, отправьте фотографию товара."
+card_no_models_available: "❌ Модели для создания фото товара сейчас недоступны."
+card_choose_idea: "✅ Фото получено! Выберите жизненный сценарий для рекламного фото:"
+card_idea_everyday: "🏠 Товар в повседневной жизни"
+card_idea_outdoor: "🌿 Товар на прогулке и отдыхе"
+card_idea_gifting: "🎁 Товар как подарок"
+card_generating: "⏳ Создаю рекламное фото товара..."
+card_photo_download_error: "❌ Не удалось загрузить фото товара. Попробуйте ещё раз."
+card_empty_response: "❌ Модель не вернула изображение. Попробуйте другой сценарий."
+card_session_expired: "Сессия закончилась. Запустите /card ещё раз."
+card_completed: |
+  🛍 <b>Карточка товара готова</b>
+
+  Сценарий: {idea}
+  Промпт: {prompt}
+card_prompt_everyday: |
+  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Place the same product in a bright, tidy modern home where a person naturally uses it in everyday life. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Do not redesign, replace or duplicate the product. Make it the clear hero subject, with natural window light, realistic contact shadows, clean composition, premium commercial photography, no readable text added, no watermark, vertical 4:5 composition.
+card_prompt_outdoor: |
+  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Place the same product in a believable outdoor leisure scene where a person is naturally using it during a walk, travel or weekend activity. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Keep the product as the clear hero subject, match perspective and lighting, use soft natural daylight, realistic shadows, premium commercial photography, no redesign, no duplicate product, no readable text added, no watermark, vertical 4:5 composition.
+card_prompt_gifting: |
+  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Show the same product being presented as an elegant gift in a warm, tasteful home setting with subtle wrapping details and a happy recipient. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Keep the product as the clear hero subject, realistic hands and scale, soft warm lighting, premium commercial photography, no redesign, no duplicate product, no readable text added, no watermark, vertical 4:5 composition.
+
 # Ошибка редактирования AI
 # {error} — текст ошибки
 edit_generation_error: |

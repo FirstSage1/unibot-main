@@ -13,6 +13,7 @@
 """
 
 import sys
+from urllib.parse import urlparse
 
 from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -130,6 +131,18 @@ class Settings(BaseSettings):
     # Если не указан — прямое подключение.
     # Пример: http://proxy.example.com:8080
     proxy: str | None = None
+
+    @property
+    def telegram_proxy(self) -> str | None:
+        """Вернуть прокси Telegram, отключая локальный прокси в production."""
+        proxy = self.bot.proxy
+        if not proxy or not self.app.is_production:
+            return proxy
+
+        hostname = urlparse(proxy).hostname
+        if hostname in {"127.0.0.1", "localhost", "::1"}:
+            return None
+        return proxy
 
 
 def _format_validation_error(error: ValidationError) -> str:

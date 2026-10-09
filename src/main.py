@@ -34,7 +34,7 @@ setup_logging(
     timezone_name=settings.logging.timezone,
     telegram_settings=settings.logging.telegram,
     bot_token=settings.bot.token.get_secret_value(),
-    proxy_url=settings.bot.proxy,
+    proxy_url=settings.telegram_proxy,
 )
 
 # Создаём FastAPI приложение

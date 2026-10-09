@@ -357,7 +357,7 @@ class ApplicationLifecycle:
         """Создать Bot instance."""
         self.bot = create_bot(
             self.settings.bot.token.get_secret_value(),
-            proxy_url=self.settings.bot.proxy,
+            proxy_url=self.settings.telegram_proxy,
         )
         logger.debug("Bot создан")
 
