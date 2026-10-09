@@ -317,6 +317,7 @@ card_photo_download_error: "Could not download the photo. Send it again using /c
 card_empty_response: "The model returned no image. You were not charged. Restart with /card."
 card_session_expired: "This button has expired or was already used. Start with /card."
 card_prompt_heading: "Промпт на русском языке:"
+card_image_no_output: "The model returned text instead of an image. No bot tokens were charged for the photo. Restart /card with another scene or a clearer product photo."
 card_completed: "Your product photo is ready. The full Russian prompt is above, under «Промпт на русском языке». New photo: /card."
 card_analysis_error: "Could not identify the product or prepare three ideas. Send a clearer photo of one product using /card."
 card_failed: "Could not complete the product card. Try again using /card."

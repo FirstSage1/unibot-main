@@ -21,7 +21,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.states.card import CardStates
-from src.core.exceptions import AIServiceError, DatabaseError, GenerationError
+from src.core.exceptions import (
+    AIServiceError,
+    DatabaseError,
+    GenerationError,
+    ImageNoOutputError,
+)
 from src.db.base import DatabaseSession
 from src.services.card_prompts import IDEA_COUNT, CardIdeas
 from src.services.product_card import CardError, ProductCardService, create_card_service
@@ -224,6 +229,8 @@ async def clear_session(state: FSMContext, session_id: str) -> None:
 def error_key(error: Exception) -> str:
     """Не выводить пользователю или в журнал сырые ответы провайдера."""
     logger.warning("Сбой /card: %s", type(error).__name__)
+    if isinstance(error, ImageNoOutputError):
+        return "card_image_no_output"
     return str(error) if isinstance(error, CardError) else "card_failed"
 
 

@@ -202,6 +202,10 @@ class GenerationError(Exception):
         return f"[{self.provider}:{self.model_id}] {self.message}"
 
 
+class ImageNoOutputError(GenerationError):
+    """Провайдер ответил на запрос, но не создал изображение."""
+
+
 class ProviderNotAvailableError(Exception):
     """Провайдер недоступен или не зарегистрирован.
 

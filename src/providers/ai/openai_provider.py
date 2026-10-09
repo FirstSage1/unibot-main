@@ -19,10 +19,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 from typing_extensions import override
 
-from src.core.exceptions import GenerationError
+from src.core.exceptions import GenerationError, ImageNoOutputError
 from src.providers.ai.base import (
     BaseProviderAdapter,
     GenerationResult,
@@ -613,15 +613,38 @@ class OpenAIAdapter(BaseProviderAdapter):
             if references:
                 encoded = base64.b64encode(references).decode("ascii")
                 extra_body["images"] = [f"data:image/jpeg;base64,{encoded}"]
-            response = await self._client.images.generate(
-                model=model_id,
-                prompt=prompt,
-                size=size,
-                quality=quality,
-                n=1,
-                response_format="b64_json",
-                extra_body=extra_body,
+            # Явно задаём формат результата; текст ошибки не доказывает,
+            # что причиной отсутствия картинки был язык запроса.
+            image_prompt = (
+                "Generate exactly one image. Do not answer with text. "
+                + (
+                    "Use the attached reference as the product identity. "
+                    if references
+                    else ""
+                )
+                + f"{prompt}"
             )
+            try:
+                response = await self._client.images.generate(
+                    model=model_id,
+                    prompt=image_prompt,
+                    size=size,
+                    quality=quality,
+                    n=1,
+                    response_format="b64_json",
+                    output_format="png",
+                    extra_body=extra_body,
+                )
+            except APIStatusError as error:
+                if error.status_code == 422 and error.code == "image_no_output":
+                    raise ImageNoOutputError(
+                        "Модель вернула текст вместо изображения. "
+                        "Попробуйте выбрать другую идею или повторить позже.",
+                        provider=self.provider_name,
+                        model_id=model_id,
+                        is_retryable=False,
+                    ) from error
+                raise
             if not response.data or not response.data[0].b64_json:
                 raise GenerationError(
                     "AnyModel вернул пустое изображение",
