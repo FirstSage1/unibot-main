@@ -9,7 +9,6 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import (
     CallbackQuery,
     InaccessibleMessage,
@@ -20,12 +19,22 @@ from aiogram.types import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.bot.handlers.card_corrections import router as corrections_router
+from src.bot.handlers.card_runtime import (
+    clear_session,
+    completion_text,
+    download_photo,
+    error_key,
+    finish_generation,
+    isolation,
+    owns_session,
+    report_error,
+)
 from src.bot.states.card import CardStates
 from src.core.exceptions import (
     AIServiceError,
     DatabaseError,
     GenerationError,
-    ImageNoOutputError,
 )
 from src.db.base import DatabaseSession
 from src.services.card_prompts import IDEA_COUNT, CardIdeas
@@ -36,9 +45,9 @@ from src.utils.logging import get_logger
 
 router = Router(name="card")
 fsm_router = Router(name="card_fsm")
+fsm_router.include_router(corrections_router)
 logger = get_logger(__name__)
 # Повторные callback одного пользователя не должны запускать платные запросы.
-isolation = SimpleEventIsolation()
 router.shutdown.register(isolation.close)
 
 
@@ -54,15 +63,6 @@ async def cmd_card(message: Message, state: FSMContext, l10n: Localization) -> N
     await state.clear()
     await state.set_state(CardStates.waiting_for_product_photo)
     await message.answer(l10n.get("card_send_photo"))
-
-
-async def download_photo(bot: Bot, file_id: str) -> bytes:
-    """Скачать JPEG, который Telegram подготовил из отправленного фото."""
-    async with asyncio.timeout(30):
-        image = await bot.download(file_id)
-    if image is None:
-        raise CardError("card_photo_download_error")
-    return image.read()
 
 
 @fsm_router.message(CardStates.waiting_for_product_photo, F.photo)
@@ -187,11 +187,13 @@ async def handle_idea_selection(
 
             async def deliver(content: str, full_prompt: str) -> None:
                 """Отправить фото после уже показанного полного промпта."""
-                await message.answer_photo(
+                sent = await message.answer_photo(
                     photo=create_input_file_from_url(content),
-                    caption=l10n.get("card_completed"),
+                    caption=completion_text(service, l10n),
                     parse_mode=None,
                 )
+                if sent.photo and await owns_session(state, session_id):
+                    await state.update_data(result_file_id=sent.photo[-1].file_id)
 
             async with session_factory() as session:
                 await service.generate(
@@ -215,28 +217,4 @@ async def handle_idea_selection(
             logger.warning("Генерация /card: %s", type(error).__name__, exc_info=False)
             await report_error(message, l10n, error_key(error))
         finally:
-            await clear_session(state, session_id)
-
-
-async def clear_session(state: FSMContext, session_id: str) -> None:
-    """Не стереть диалог, который пользователь начал другой командой."""
-    if (await state.get_data()).get("session_id") == session_id:
-        current = await state.get_state()
-        if current and current.startswith("CardStates:"):
-            await state.clear()
-
-
-def error_key(error: Exception) -> str:
-    """Не выводить пользователю или в журнал сырые ответы провайдера."""
-    logger.warning("Сбой /card: %s", type(error).__name__)
-    if isinstance(error, ImageNoOutputError):
-        return "card_image_no_output"
-    return str(error) if isinstance(error, CardError) else "card_failed"
-
-
-async def report_error(message: Message, l10n: Localization, key: str) -> None:
-    """Сообщить о сбое даже при удалённом сообщении прогресса."""
-    try:
-        await message.answer(l10n.get(key))
-    except (OSError, RuntimeError, TelegramAPIError):
-        logger.warning("Не удалось доставить уведомление /card", exc_info=False)
+            await finish_generation(state, session_id)

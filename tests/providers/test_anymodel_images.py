@@ -7,7 +7,7 @@ import httpx
 import pytest
 from openai import AsyncOpenAI
 
-from src.bot.handlers.card import error_key
+from src.bot.handlers.card_runtime import error_key
 from src.core.exceptions import GenerationError, ImageNoOutputError
 from src.providers.ai.base import GenerationType
 from src.providers.ai.openai_provider import OpenAIAdapter

@@ -28,7 +28,11 @@ async def test_full_flow_and_duplicate_click() -> None:
     menu.delete = AsyncMock()
     message.answer = AsyncMock(return_value=menu)
     menu.answer = AsyncMock(return_value=menu)
-    menu.answer_photo = AsyncMock()
+    menu.answer_photo = AsyncMock(
+        return_value=MagicMock(
+            photo=[MagicMock(file_id="generated-result")],
+        )
+    )
     menu.edit_reply_markup = AsyncMock()
     l10n = MagicMock()
     l10n.get.side_effect = lambda key, **_: key
@@ -77,7 +81,8 @@ async def test_full_flow_and_duplicate_click() -> None:
     menu.answer.assert_any_await(
         "card_prompt_heading\n\n" + "п" * 1900, parse_mode=None
     )
-    assert await state.get_state() is None
+    assert await state.get_state() == CardStates.waiting_for_correction.state
+    assert (await state.get_data())["result_file_id"] == "generated-result"
 
 
 async def test_old_callback_does_not_clear_new_session() -> None:

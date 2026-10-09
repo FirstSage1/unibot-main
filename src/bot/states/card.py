@@ -10,3 +10,4 @@ class CardStates(StatesGroup):
     analyzing = State()
     waiting_for_idea = State()
     generating = State()
+    waiting_for_correction = State()
