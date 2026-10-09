@@ -1064,6 +1064,13 @@ class CommandsConfig(BaseModel):
         return [name for name, config in self.commands.items() if config.enabled]
 
 
+class CardConfig(BaseModel):
+    """Модели для анализа фото и создания карточек товара."""
+
+    idea_model: str = "gpt-5-2"
+    image_model: str = "gemini-2-5-flash-image-edit"
+
+
 class YamlConfig(BaseModel):
     """Главная YAML-конфигурация.
 
@@ -1072,6 +1079,7 @@ class YamlConfig(BaseModel):
 
     # Словарь моделей: ключ — ID модели в нашей системе
     models: dict[str, ModelConfig] = Field(default_factory=dict)
+    card: CardConfig = Field(default_factory=CardConfig)
     generation_timeouts: GenerationTimeouts = GenerationTimeouts()
     limits: Limits = Limits()
     localization: LocalizationConfig = LocalizationConfig()

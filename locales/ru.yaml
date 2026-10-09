@@ -293,32 +293,23 @@ edit_completed: |
 
   Запрос: {prompt}
 
-# /card — создание рекламного фото товара в жизненном контексте
-card_send_photo: |
-  🛍 <b>Фото товара для маркетплейса</b>
-
-  Отправьте фотографию товара. Я создам рекламный визуал с ним в реальной сцене.
-card_please_send_photo: "❌ Пожалуйста, отправьте фотографию товара."
-card_no_models_available: "❌ Модели для создания фото товара сейчас недоступны."
-card_choose_idea: "✅ Фото получено! Выберите жизненный сценарий для рекламного фото:"
-card_idea_everyday: "🏠 Товар в повседневной жизни"
-card_idea_outdoor: "🌿 Товар на прогулке и отдыхе"
-card_idea_gifting: "🎁 Товар как подарок"
-card_generating: "⏳ Создаю рекламное фото товара..."
-card_photo_download_error: "❌ Не удалось загрузить фото товара. Попробуйте ещё раз."
-card_empty_response: "❌ Модель не вернула изображение. Попробуйте другой сценарий."
-card_session_expired: "Сессия закончилась. Запустите /card ещё раз."
-card_completed: |
-  🛍 <b>Карточка товара готова</b>
-
-  Сценарий: {idea}
-  Промпт: {prompt}
-card_prompt_everyday: |
-  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Place the same product in a bright, tidy modern home where a person naturally uses it in everyday life. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Do not redesign, replace or duplicate the product. Make it the clear hero subject, with natural window light, realistic contact shadows, clean composition, premium commercial photography, no readable text added, no watermark, vertical 4:5 composition.
-card_prompt_outdoor: |
-  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Place the same product in a believable outdoor leisure scene where a person is naturally using it during a walk, travel or weekend activity. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Keep the product as the clear hero subject, match perspective and lighting, use soft natural daylight, realistic shadows, premium commercial photography, no redesign, no duplicate product, no readable text added, no watermark, vertical 4:5 composition.
-card_prompt_gifting: |
-  Using the provided product photo as the exact reference, create a photorealistic marketplace lifestyle image. Show the same product being presented as an elegant gift in a warm, tasteful home setting with subtle wrapping details and a happy recipient. Preserve the product's exact shape, proportions, colors, material, controls, logo and all visible details. Keep the product as the clear hero subject, realistic hands and scale, soft warm lighting, premium commercial photography, no redesign, no duplicate product, no readable text added, no watermark, vertical 4:5 composition.
+# /card — фото товара и три индивидуальные идеи использования
+card_send_photo: "Пришлите фотографию одного товара. Я предложу три идеи его использования в жизни."
+card_please_send_photo: "Пришлите фотографию товара как фото, а не файл. Для начала заново: /card."
+card_no_models_available: "Модели для анализа и создания карточек недоступны. Попробуйте позже через /card."
+card_analyzing: "Изучаю товар и придумываю три сцены..."
+card_choose_idea: "Выберите одну из трёх идей. Нажатие запускает генерацию. Стоимость фото: {price} токенов; идеи включены."
+card_generating: "Создаю фото товара. Это может занять несколько минут..."
+card_photo_download_error: "Не удалось скачать фото. Пришлите его заново через /card."
+card_empty_response: "Модель не вернула изображение. Оплата не списана. Начните заново через /card."
+card_session_expired: "Эта кнопка уже использована или устарела. Новая карточка: /card."
+card_prompt_heading: "Промпт на русском языке:"
+card_completed: "Фото товара готово. Полный промпт на русском — в сообщении выше с заголовком «Промпт на русском языке». Новая карточка: /card."
+card_analysis_error: "Не удалось уверенно определить товар или получить три идеи. Пришлите более чёткий снимок одного товара через /card."
+card_failed: "Не удалось завершить создание карточки. Попробуйте снова через /card."
+card_interrupted: "Создание карточки прервано. Начните заново через /card."
+card_busy: "Предыдущая генерация ещё выполняется. Дождитесь результата."
+card_insufficient_balance: "Недостаточно токенов для фото. Проверьте /balance и начните заново через /card."
 
 # Ошибка редактирования AI
 # {error} — текст ошибки

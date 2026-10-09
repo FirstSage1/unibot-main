@@ -7,4 +7,6 @@ class CardStates(StatesGroup):
     """Шаги создания фото товара: загрузка исходника и выбор сцены."""
 
     waiting_for_product_photo = State()
+    analyzing = State()
     waiting_for_idea = State()
+    generating = State()

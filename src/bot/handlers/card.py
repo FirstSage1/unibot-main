@@ -1,54 +1,63 @@
-"""Обработчик команды /card для создания рекламных фото товара."""
+"""Диалог /card: фото, три идеи использования, изображение с промптом."""
 
+import asyncio
 from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, suppress
+from secrets import token_hex
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import (
-    BotCommand,
     CallbackQuery,
     InaccessibleMessage,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.states.card import CardStates
-from src.bot.utils.billing import charge_after_delivery, check_billing_and_show_error
-from src.core.exceptions import GenerationError
+from src.core.exceptions import AIServiceError, DatabaseError, GenerationError
 from src.db.base import DatabaseSession
-from src.db.exceptions import DatabaseError, UserNotFoundError
-from src.db.repositories import UserRepository
-from src.services.ai_service import AIService, create_ai_service
-from src.services.billing_service import create_billing_service
+from src.services.card_prompts import IDEA_COUNT, CardIdeas
+from src.services.product_card import CardError, ProductCardService, create_card_service
 from src.utils import create_input_file_from_url
 from src.utils.i18n import Localization
 from src.utils.logging import get_logger
 
-COMMAND = BotCommand(command="card", description="🛍 Создать фото товара")
-GENERATION_TYPE_IMAGE_EDIT = "image_edit"
-IDEAS = {
-    "card:everyday": "everyday",
-    "card:outdoor": "outdoor",
-    "card:gifting": "gifting",
-}
-
 router = Router(name="card")
 fsm_router = Router(name="card_fsm")
 logger = get_logger(__name__)
+# Повторные callback одного пользователя не должны запускать платные запросы.
+isolation = SimpleEventIsolation()
+router.shutdown.register(isolation.close)
 
 
-@router.message(Command(COMMAND))
+@router.message(Command("card", ignore_case=True))
 async def cmd_card(message: Message, state: FSMContext, l10n: Localization) -> None:
-    """Запросить у пользователя фотографию товара."""
+    """Начать новый сценарий и сделать старые кнопки недействительными."""
     if not message.from_user:
         return
-
+    current = await state.get_state()
+    if current in {CardStates.analyzing.state, CardStates.generating.state}:
+        await message.answer(l10n.get("card_busy"))
+        return
+    await state.clear()
     await state.set_state(CardStates.waiting_for_product_photo)
     await message.answer(l10n.get("card_send_photo"))
+
+
+async def download_photo(bot: Bot, file_id: str) -> bytes:
+    """Скачать JPEG, который Telegram подготовил из отправленного фото."""
+    async with asyncio.timeout(30):
+        image = await bot.download(file_id)
+    if image is None:
+        raise CardError("card_photo_download_error")
+    return image.read()
 
 
 @fsm_router.message(CardStates.waiting_for_product_photo, F.photo)
@@ -56,150 +65,171 @@ async def handle_product_photo(
     message: Message,
     state: FSMContext,
     l10n: Localization,
-    ai_service: AIService | None = None,
+    bot: Bot,
+    card_service: ProductCardService | None = None,
 ) -> None:
-    """Сохранить фото товара и предложить три рекламных сюжета."""
+    """Показать идеи, основанные на анализе фотографии пользователя."""
     if not message.from_user or not message.photo:
         return
-
-    service = ai_service or create_ai_service()
-    models = service.get_available_models()
-    if not any(
-        model.generation_type == GENERATION_TYPE_IMAGE_EDIT for model in models.values()
-    ):
-        await message.answer(l10n.get("card_no_models_available"))
-        await state.clear()
-        return
-
-    await state.update_data(image_file_id=message.photo[-1].file_id)
-    await state.set_state(CardStates.waiting_for_idea)
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=l10n.get(f"card_idea_{idea}"), callback_data=callback_data
-                )
-            ]
-            for callback_data, idea in IDEAS.items()
-        ]
-    )
-    await message.answer(l10n.get("card_choose_idea"), reply_markup=keyboard)
+    async with isolation.lock(state.key):
+        if await state.get_state() != CardStates.waiting_for_product_photo.state:
+            return
+        service = card_service if card_service is not None else create_card_service()
+        session_id = token_hex(6)
+        file_id = message.photo[-1].file_id
+        await state.set_data({"session_id": session_id, "image_file_id": file_id})
+        await state.set_state(CardStates.analyzing)
+        try:
+            processing = await message.answer(l10n.get("card_analyzing"))
+            ideas = await service.suggest(await download_photo(bot, file_id))
+            if (await state.get_data()).get("session_id") != session_id:
+                return
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text=f"{index + 1}. {idea.title}",
+                            callback_data=f"card:{session_id}:{index}",
+                        )
+                    ]
+                    for index, idea in enumerate(ideas.ideas)
+                ]
+            )
+            description = "\n\n".join(
+                f"{index + 1}. {idea.title}\n{idea.scene}"
+                for index, idea in enumerate(ideas.ideas)
+            )
+            model = service.config.models[service.config.card.image_model]
+            price = model.price_tokens if service.config.billing.enabled else 0
+            menu = await message.answer(
+                l10n.get("card_choose_idea", price=price) + "\n\n" + description,
+                reply_markup=keyboard,
+                parse_mode=None,
+            )
+            await state.update_data(ideas=ideas.model_dump(), menu_id=menu.message_id)
+            await state.set_state(CardStates.waiting_for_idea)
+            with suppress(Exception):
+                await processing.delete()
+        except asyncio.CancelledError:
+            await report_error(message, l10n, "card_interrupted")
+            await clear_session(state, session_id)
+            raise
+        except (
+            CardError,
+            OSError,
+            ValueError,
+            TelegramAPIError,
+            AIServiceError,
+            GenerationError,
+            DatabaseError,
+            SQLAlchemyError,
+        ) as error:
+            logger.warning("Анализ /card: %s", type(error).__name__, exc_info=False)
+            await report_error(message, l10n, error_key(error))
+            await clear_session(state, session_id)
 
 
 @fsm_router.message(
-    CardStates.waiting_for_product_photo,
-    ~F.photo,
-    ~F.text.startswith("/"),
+    CardStates.waiting_for_product_photo, ~F.photo, ~F.text.startswith("/")
 )
 async def handle_invalid_photo(message: Message, l10n: Localization) -> None:
-    """Попросить прислать фото вместо другого типа сообщения."""
+    """Объяснить, что для анализа нужен именно снимок товара."""
     await message.answer(l10n.get("card_please_send_photo"))
 
 
-@fsm_router.callback_query(CardStates.waiting_for_idea, F.data.in_(IDEAS))
+@router.callback_query(F.data.startswith("card:"))
 async def handle_idea_selection(
     callback: CallbackQuery,
     state: FSMContext,
     l10n: Localization,
-    ai_service: AIService | None = None,
+    bot: Bot,
+    card_service: ProductCardService | None = None,
     session_factory: Callable[
         [], AbstractAsyncContextManager[AsyncSession]
     ] = DatabaseSession,
 ) -> None:
-    """Сгенерировать рекламный визуал для выбранного сценария."""
-    if not callback.message or isinstance(callback.message, InaccessibleMessage):
-        await callback.answer()
-        return
-
-    idea_key = IDEAS.get(callback.data or "")
-    state_data = await state.get_data()
-    image_file_id = state_data.get("image_file_id")
-    if not idea_key or not image_file_id:
-        await callback.answer(l10n.get("card_session_expired"), show_alert=True)
-        await state.clear()
-        return
-
-    service = ai_service or create_ai_service()
-    model_key = next(
-        (
-            key
-            for key, model in service.get_available_models().items()
-            if model.generation_type == GENERATION_TYPE_IMAGE_EDIT
-        ),
-        None,
-    )
-    if not model_key:
-        await callback.message.answer(l10n.get("card_no_models_available"))
-        await state.clear()
-        await callback.answer()
-        return
-
+    """Проверить кнопку и доставить результат до списания оплаты."""
     await callback.answer()
-    processing_msg = await callback.message.answer(l10n.get("card_generating"))
-    try:
-        async with session_factory() as session:
-            user = await UserRepository(session).get_by_telegram_id(
-                callback.from_user.id
+    if not callback.message or isinstance(callback.message, InaccessibleMessage):
+        return
+    message = callback.message
+    async with isolation.lock(state.key):
+        data = await state.get_data()
+        parts = (callback.data or "").split(":")
+        if (
+            len(parts) != 3
+            or parts[1] != data.get("session_id")
+            or not parts[2].isdigit()
+            or not 0 <= int(parts[2]) < IDEA_COUNT
+            or data.get("menu_id") != message.message_id
+            or await state.get_state() != CardStates.waiting_for_idea.state
+        ):
+            await message.answer(l10n.get("card_session_expired"))
+            return
+        session_id = parts[1]
+        service = card_service if card_service is not None else create_card_service()
+        await state.set_state(CardStates.generating)
+        try:
+            ideas = CardIdeas.model_validate(data["ideas"])
+            prompt = service.prompt(ideas, int(parts[2]))
+            await message.edit_reply_markup(reply_markup=None)
+            await message.answer(
+                l10n.get("card_prompt_heading") + "\n\n" + prompt,
+                parse_mode=None,
             )
-            if not user:
-                raise UserNotFoundError(callback.from_user.id)
+            processing = await message.answer(l10n.get("card_generating"))
+            image = await download_photo(bot, str(data["image_file_id"]))
 
-            billing = create_billing_service(session)
-            cost = await check_billing_and_show_error(
-                billing, user, model_key, processing_msg, l10n
-            )
-            if cost is None:
-                await state.clear()
-                return
+            async def deliver(content: str, full_prompt: str) -> None:
+                """Отправить фото после уже показанного полного промпта."""
+                await message.answer_photo(
+                    photo=create_input_file_from_url(content),
+                    caption=l10n.get("card_completed"),
+                    parse_mode=None,
+                )
 
-            image_data = await _download_image(callback.bot, image_file_id)
-            if not image_data:
-                await processing_msg.edit_text(l10n.get("card_photo_download_error"))
-                await state.clear()
-                return
+            async with session_factory() as session:
+                await service.generate(
+                    session, callback.from_user.id, image, prompt, deliver
+                )
+            with suppress(Exception):
+                await processing.delete()
+        except asyncio.CancelledError:
+            await report_error(message, l10n, "card_interrupted")
+            raise
+        except (
+            CardError,
+            OSError,
+            ValueError,
+            TelegramAPIError,
+            AIServiceError,
+            GenerationError,
+            DatabaseError,
+            SQLAlchemyError,
+        ) as error:
+            logger.warning("Генерация /card: %s", type(error).__name__, exc_info=False)
+            await report_error(message, l10n, error_key(error))
+        finally:
+            await clear_session(state, session_id)
 
-            prompt = l10n.get(f"card_prompt_{idea_key}")
-            result = await service.generate(
-                model_key=model_key,
-                prompt=prompt,
-                image_data=image_data,
-            )
-            if not result.content or not isinstance(result.content, str):
-                await processing_msg.edit_text(l10n.get("card_empty_response"))
-                await state.clear()
-                return
 
-            await callback.message.answer_photo(
-                photo=create_input_file_from_url(result.content),
-                caption=l10n.get(
-                    "card_completed",
-                    idea=l10n.get(f"card_idea_{idea_key}"),
-                    prompt=prompt[:700],
-                ),
-            )
-            await processing_msg.delete()
-            await charge_after_delivery(
-                billing, user, model_key, cost, GENERATION_TYPE_IMAGE_EDIT
-            )
+async def clear_session(state: FSMContext, session_id: str) -> None:
+    """Не стереть диалог, который пользователь начал другой командой."""
+    if (await state.get_data()).get("session_id") == session_id:
+        current = await state.get_state()
+        if current and current.startswith("CardStates:"):
             await state.clear()
-    except (UserNotFoundError, GenerationError, DatabaseError):
-        logger.exception(
-            "Ошибка создания карточки товара | user_id=%d", callback.from_user.id
-        )
-        await processing_msg.edit_text(l10n.get("generation_unexpected_error"))
-        await state.clear()
-    except Exception:
-        logger.exception(
-            "Неожиданная ошибка создания карточки | user_id=%d", callback.from_user.id
-        )
-        await processing_msg.edit_text(l10n.get("generation_unexpected_error"))
-        await state.clear()
 
 
-async def _download_image(bot: Bot, file_id: str) -> bytes | None:
-    """Загрузить исходное изображение товара из Telegram."""
-    file = await bot.get_file(file_id)
-    if not file.file_path:
-        return None
-    image = await bot.download_file(file.file_path)
-    return image.read() if image else None
+def error_key(error: Exception) -> str:
+    """Не выводить пользователю или в журнал сырые ответы провайдера."""
+    logger.warning("Сбой /card: %s", type(error).__name__)
+    return str(error) if isinstance(error, CardError) else "card_failed"
+
+
+async def report_error(message: Message, l10n: Localization, key: str) -> None:
+    """Сообщить о сбое даже при удалённом сообщении прогресса."""
+    try:
+        await message.answer(l10n.get(key))
+    except (OSError, RuntimeError, TelegramAPIError):
+        logger.warning("Не удалось доставить уведомление /card", exc_info=False)

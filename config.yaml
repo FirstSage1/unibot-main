@@ -323,6 +323,12 @@ limits:
 #
 # Порядок команд в этом разделе определяет порядок в меню Telegram.
 
+# Анализ фото требует chat-модель с поддержкой изображений.
+# Три идеи включены в сценарий; списание — только за готовое фото.
+card:
+  idea_model: gpt-5-2
+  image_model: gemini-2-5-flash-image-edit
+
 commands:
   generate:
     enabled: true
