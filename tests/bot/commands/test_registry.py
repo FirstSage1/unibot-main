@@ -422,6 +422,22 @@ class TestCommandRegistry:
         assert "start" in command_names
         assert "disabled_command" not in command_names
 
+    def test_card_command_is_in_enabled_menu(self) -> None:
+        """Включённая команда /card должна публиковаться в меню Telegram."""
+        from src.bot.commands import get_command_registry
+        from src.config.yaml_config import yaml_config
+
+        registry = get_command_registry()
+        menu_commands = registry.get_menu_bot_commands(
+            commands_config=yaml_config.commands,
+            language="ru",
+            localization_enabled=True,
+            billing_enabled=yaml_config.billing.enabled,
+            legal_documents_configured=yaml_config.legal.has_documents(),
+        )
+
+        assert "card" in {command.command for command in menu_commands}
+
 
 class TestCommandDefinition:
     """Тесты для CommandDefinition."""

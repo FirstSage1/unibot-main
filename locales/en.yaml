@@ -24,6 +24,7 @@ start_message: |
   📝 /generate — product description for marketplaces
   🎨 /imagine — generate images
   ✏️ /edit_image — edit images
+  🛍️ /card — product photo for marketplaces
   🗑️ /clear — clear chat history
   💰 /balance — check your balance
   ⚙️ /settings — settings
@@ -622,6 +623,7 @@ help_message_with_contact: |
   • 📝 /generate — product description for marketplaces
   • 🎨 /imagine — image generation
   • ✏️ /edit_image — image editing
+  • 🛍️ /card — product photo for marketplaces
   • 💰 /balance — check token balance
   • ⚙️ /settings — settings
 
@@ -638,6 +640,7 @@ help_message_no_contact: |
   • 📝 /generate — product description for marketplaces
   • 🎨 /imagine — image generation
   • ✏️ /edit_image — image editing
+  • 🛍️ /card — product photo for marketplaces
   • 💰 /balance — check token balance
   • ⚙️ /settings — settings
 
