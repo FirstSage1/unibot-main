@@ -38,9 +38,39 @@ class ProductCardService:
             if key not in available or available[key].generation_type != kind:
                 raise CardError("card_no_models_available")
 
-    async def suggest(self, image_data: bytes) -> CardIdeas:
-        """Проанализировать референс и вернуть три проверенных сюжета."""
+    async def suggest(
+        self, session: AsyncSession, telegram_user_id: int, image_data: bytes
+    ) -> CardIdeas:
+        """Учесть анализ товара как расход, включённый в стоимость карточки."""
         self.validate_models()
+        user = await UserRepository(session).get_by_telegram_id(telegram_user_id)
+        if user is None:
+            raise CardError("error_user_not_found")
+        repo = GenerationRepository(session)
+        if await repo.count_pending_generations(user.id):
+            raise CardError("card_busy")
+        key = self.config.card.idea_model
+        model = self.config.models[key]
+        generation = await repo.create_generation(user.id, "chat", key)
+        generation_id = generation.id
+        try:
+            ideas, usage = await self._analyze(image_data)
+            await repo.update_generation_status(
+                generation_id,
+                GenerationDBStatus.COMPLETED,
+                cost_rub=model.cost.calculate(usage),
+                tokens_charged=0,
+            )
+            return ideas
+        except (Exception, asyncio.CancelledError):
+            await session.rollback()
+            await repo.update_generation_status(
+                generation_id, GenerationDBStatus.FAILED
+            )
+            raise
+
+    async def _analyze(self, image_data: bytes) -> tuple[CardIdeas, dict[str, int]]:
+        """Проанализировать референс и вернуть три проверенных сюжета."""
         encoded = base64.b64encode(image_data).decode("ascii")
         async with asyncio.timeout(self.config.generation_timeouts.chat):
             result = await self.ai.generate(
@@ -71,9 +101,15 @@ class ProductCardService:
         if raw.startswith("```json") and raw.endswith("```"):
             raw = raw[7:-3].strip()
         try:
-            return CardIdeas.model_validate_json(raw)
+            ideas = CardIdeas.model_validate_json(raw)
         except ValidationError as error:
             raise CardError("card_analysis_error") from error
+        usage = {
+            key: value
+            for key, value in result.usage.items()
+            if isinstance(value, int) and not isinstance(value, bool)
+        }
+        return ideas, usage
 
     async def generate(
         self,

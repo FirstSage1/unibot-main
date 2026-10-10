@@ -54,6 +54,7 @@ async def handle_correction(
         if not await prepare_correction(message, state, l10n, bot):
             return
         data = await state.get_data()
+        processing: Message | None = None
         try:
             prompt = build_correction_prompt(message.text)
         except ValueError:
@@ -88,8 +89,6 @@ async def handle_correction(
                 await service.generate(
                     session, message.from_user.id, image, prompt, deliver
                 )
-            with suppress(TelegramAPIError):
-                await processing.delete()
         except asyncio.CancelledError:
             await report_error(message, l10n, "card_interrupted")
             raise
@@ -105,6 +104,9 @@ async def handle_correction(
         ) as error:
             await report_error(message, l10n, error_key(error))
         finally:
+            if processing is not None:
+                with suppress(Exception):
+                    await processing.delete()
             await finish_generation(state, session_id)
 
 
@@ -125,21 +127,22 @@ async def prepare_correction(
 ) -> bool:
     """Восстановить старое фото по ответу и отсеять повторную доставку текста."""
     current = await state.get_state()
-    if current is None:
-        reply = message.reply_to_message
-        if (
-            not reply
-            or not reply.photo
-            or not reply.from_user
-            or reply.from_user.id != bot.id
-        ):
-            await message.answer(l10n.get("card_correction_missing"))
-            return False
-        await state.set_data(
-            {"session_id": token_hex(6), "result_file_id": reply.photo[-1].file_id}
-        )
-        await state.set_state(CardStates.waiting_for_correction)
-    elif current != CardStates.waiting_for_correction.state:
+    if current not in {None, CardStates.waiting_for_correction.state}:
         await message.answer(l10n.get("card_busy"))
         return False
-    return (await state.get_data()).get("last_correction_id") != message.message_id
+    data = await state.get_data()
+    if data.get("last_correction_id") == message.message_id:
+        return False
+    reply = message.reply_to_message
+    if reply and reply.photo and reply.from_user and reply.from_user.id == bot.id:
+        # Ответ на конкретное фото должен редактировать именно его, даже если
+        # в FSM уже хранится более новый результат другой карточки.
+        await state.update_data(
+            session_id=data.get("session_id") or token_hex(6),
+            result_file_id=reply.photo[-1].file_id,
+        )
+        await state.set_state(CardStates.waiting_for_correction)
+    elif current is None:
+        await message.answer(l10n.get("card_correction_missing"))
+        return False
+    return True

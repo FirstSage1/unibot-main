@@ -22,7 +22,12 @@ import httpx
 from openai import APIStatusError, AsyncOpenAI
 from typing_extensions import override
 
-from src.core.exceptions import GenerationError, ImageNoOutputError
+from src.core.exceptions import (
+    GenerationError,
+    ImageNoOutputError,
+    ModelTemporarilyUnavailableError,
+)
+from src.providers.ai.anymodel_catalog import AnyModelCatalog
 from src.providers.ai.base import (
     BaseProviderAdapter,
     GenerationResult,
@@ -119,6 +124,7 @@ class OpenAIAdapter(BaseProviderAdapter):
         self._base_url = base_url
         self._timeout = timeout
         self._proxy_url = proxy_url
+        self._catalog = AnyModelCatalog()
 
         # Создаем httpx клиент с прокси (если указан)
         http_client: httpx.AsyncClient | None = None
@@ -150,6 +156,24 @@ class OpenAIAdapter(BaseProviderAdapter):
     def supports_capability(self, generation_type: GenerationType) -> bool:
         """Проверить поддержку типа генерации."""
         return generation_type in SUPPORTED_GENERATION_TYPES
+
+    @override
+    async def get_model_candidates(
+        self, model_id: str, generation_type: GenerationType
+    ) -> list[str]:
+        """Проверить каталог AnyModel до платного запроса к модели."""
+        if self._base_url != "https://anymodel.org/v1":
+            return [model_id]
+        if generation_type not in {GenerationType.IMAGE, GenerationType.IMAGE_EDIT}:
+            return [model_id]
+        return await self._catalog.candidates(
+            self._client,
+            model_id,
+            generation_type,
+            base_url=self._base_url,
+            api_key=self._api_key,
+            proxy=self._proxy_url,
+        )
 
     @override
     async def generate(
@@ -612,7 +636,10 @@ class OpenAIAdapter(BaseProviderAdapter):
             extra_body = {}
             if references:
                 encoded = base64.b64encode(references).decode("ascii")
-                extra_body["images"] = [f"data:image/jpeg;base64,{encoded}"]
+                # Для одного референса AnyModel ожидает одиночное поле image.
+                # Массив images предназначен для Image Studio и часть маршрутов
+                # отклоняет его общим ответом bad_request.
+                extra_body["image"] = f"data:image/jpeg;base64,{encoded}"
             # Явно задаём формат результата; текст ошибки не доказывает,
             # что причиной отсутствия картинки был язык запроса.
             image_prompt = (
@@ -625,17 +652,29 @@ class OpenAIAdapter(BaseProviderAdapter):
                 + f"{prompt}"
             )
             try:
-                response = await self._client.images.generate(
+                # Для AnyModel оставляем только параметры, общие для всех
+                # image-маршрутов: отдельные quality/size/output_format могут
+                # быть отвергнуты upstream-провайдером как несовместимые.
+                # Повтор выбирает пользователь: автоматические повторы SDK могут
+                # занимать весь таймаут карточки при Retry-After: 60.
+                image_client = self._client.with_options(max_retries=0)
+                response = await image_client.images.generate(
                     model=model_id,
                     prompt=image_prompt,
-                    size=size,
-                    quality=quality,
                     n=1,
                     response_format="b64_json",
-                    output_format="png",
                     extra_body=extra_body,
                 )
             except APIStatusError as error:
+                if error.status_code in {404, 406, 503}:
+                    self._catalog.mark_unavailable(model_id)
+                    logger.warning("Модель временно недоступна: model=%s", model_id)
+                    raise ModelTemporarilyUnavailableError(
+                        "Модель временно недоступна",
+                        provider=self.provider_name,
+                        model_id=model_id,
+                        is_retryable=True,
+                    ) from error
                 if error.status_code == 422 and error.code == "image_no_output":
                     raise ImageNoOutputError(
                         "Модель вернула текст вместо изображения. "

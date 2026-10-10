@@ -13,6 +13,7 @@ from aiogram.types import Message
 
 from src.bot.handlers.card import cmd_card, handle_idea_selection, handle_product_photo
 from src.bot.states.card import CardStates
+from src.core.exceptions import ModelTemporarilyUnavailableError
 from src.services.product_card import ProductCardService
 from tests.services.test_card_prompts import make_ideas
 
@@ -62,7 +63,7 @@ async def test_full_flow_and_duplicate_click() -> None:
         yield MagicMock()
 
     await cmd_card(message, state, l10n)
-    await handle_product_photo(message, state, l10n, bot, service)
+    await handle_product_photo(message, state, l10n, bot, service, session_factory)
     assert await state.get_state() == CardStates.waiting_for_idea.state
     keyboard = message.answer.call_args.kwargs["reply_markup"]
     assert len(keyboard.inline_keyboard) == 3
@@ -98,3 +99,59 @@ async def test_old_callback_does_not_clear_new_session() -> None:
     await handle_idea_selection(callback, state, MagicMock(), MagicMock(), service)
     service.generate.assert_not_called()
     assert (await state.get_data())["session_id"] == "new"
+
+
+async def test_unavailable_model_preserves_menu_for_retry() -> None:
+    """Временная ошибка оставляет исходное фото и идеи для ручного повтора."""
+    state = FSMContext(MemoryStorage(), StorageKey(bot_id=1, chat_id=8, user_id=9))
+    await state.set_state(CardStates.waiting_for_idea)
+    await state.set_data(
+        {
+            "session_id": "test",
+            "menu_id": 42,
+            "image_file_id": "reference",
+            "ideas": make_ideas().model_dump(),
+        }
+    )
+    menu = MagicMock(spec=Message)
+    menu.message_id = 42
+    processing = MagicMock(spec=Message)
+    processing.delete = AsyncMock()
+    menu.answer = AsyncMock(return_value=processing)
+    menu.edit_reply_markup = AsyncMock()
+    menu.answer_photo = AsyncMock()
+    callback = MagicMock(message=menu, data="card:test:1")
+    callback.from_user.id = 9
+    callback.answer = AsyncMock()
+    bot = MagicMock()
+    bot.download = AsyncMock(return_value=BytesIO(b"photo"))
+    l10n = MagicMock()
+    l10n.get.side_effect = lambda key, **_: key
+    service = MagicMock(spec=ProductCardService)
+    service.prompt.return_value = "промпт"
+    service.generate = AsyncMock(
+        side_effect=ModelTemporarilyUnavailableError(
+            "Модель временно недоступна",
+            provider="anymodel",
+            model_id="cx/gpt-image-2",
+            is_retryable=True,
+        )
+    )
+
+    @asynccontextmanager
+    async def session_factory() -> AsyncIterator[MagicMock]:
+        yield MagicMock()
+
+    await handle_idea_selection(callback, state, l10n, bot, service, session_factory)
+    assert await state.get_state() == CardStates.waiting_for_idea.state
+    assert (await state.get_data())["image_file_id"] == "reference"
+    keyboard = menu.edit_reply_markup.call_args.kwargs["reply_markup"]
+    assert len(keyboard.inline_keyboard) == 3
+    assert keyboard.inline_keyboard[1][0].callback_data == "card:test:1"
+    menu.answer.assert_any_await("card_model_unavailable")
+    processing.delete.assert_awaited_once()
+    menu.answer_photo.assert_not_awaited()
+
+    service.generate.side_effect = None
+    await handle_idea_selection(callback, state, l10n, bot, service, session_factory)
+    assert service.generate.await_count == 2

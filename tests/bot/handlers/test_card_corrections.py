@@ -122,6 +122,7 @@ async def test_failure_preserves_last_photo(
     assert (await state.get_data())["result_file_id"] == "last"
     assert await state.get_state() == CardStates.waiting_for_correction.state
     message.answer.assert_any_await("card_empty_response")
+    message.answer.return_value.delete.assert_awaited_once()
 
 
 async def test_reply_recovers_old_card(
@@ -136,6 +137,25 @@ async def test_reply_recovers_old_card(
     message.reply_to_message.photo = [MagicMock(file_id="old-card")]
     await handle_correction(message, state, l10n, bot, service, session_factory)
     assert service.generate.call_args.args[2] == b"old-card"
+
+
+async def test_reply_selects_photo_in_active_session(
+    state: FSMContext,
+    message: MagicMock,
+    bot: MagicMock,
+    service: MagicMock,
+    l10n: MagicMock,
+) -> None:
+    """Ответ на старое фото имеет приоритет над последним результатом FSM."""
+    await state.set_state(CardStates.waiting_for_correction)
+    await state.set_data({"session_id": "test", "result_file_id": "latest"})
+    message.reply_to_message.from_user.id = bot.id
+    message.reply_to_message.photo = [MagicMock(file_id="selected")]
+    await handle_correction(message, state, l10n, bot, service, session_factory)
+    assert service.generate.call_args.args[2] == b"selected"
+    await handle_correction(message, state, l10n, bot, service, session_factory)
+    service.generate.assert_awaited_once()
+    assert (await state.get_data())["result_file_id"] == "edited"
 
 
 async def test_other_command_state_is_preserved(

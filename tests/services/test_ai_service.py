@@ -9,6 +9,7 @@ from src.config.models import AIProvidersSettings
 from src.config.yaml_config import ModelConfig, YamlConfig
 from src.core.exceptions import (
     AIServiceError,
+    GenerationError,
     ModelNotFoundError,
     ProviderNotAvailableError,
 )
@@ -271,6 +272,34 @@ async def test_ai_service_generate_merges_params(
 
 
 @pytest.mark.asyncio
+async def test_ai_service_uses_next_model_after_temporary_failure(
+    mock_settings: AIProvidersSettings,
+    test_config: YamlConfig,
+) -> None:
+    """Временная ошибка первой модели переключает запрос на следующий маршрут."""
+    service = AIService(mock_settings, test_config)
+    adapter = MagicMock()
+    adapter.get_model_candidates = AsyncMock(return_value=["first", "second"])
+    adapter.generate = AsyncMock(
+        side_effect=[
+            GenerationError(
+                "temporary", provider="test", model_id="first", is_retryable=True
+            ),
+            GenerationResult(status=GenerationStatus.SUCCESS, content="готово"),
+        ]
+    )
+    service._adapters["openrouter"] = adapter
+
+    result = await service.generate("gpt-4o", "проверка")
+
+    assert result.content == "готово"
+    assert [call.kwargs["model_id"] for call in adapter.generate.await_args_list] == [
+        "first",
+        "second",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_ai_service_adapter_caching(
     mock_settings: AIProvidersSettings,
     test_config: YamlConfig,
@@ -305,7 +334,7 @@ def test_ai_service_is_provider_available_true(
     )
     assert (
         service._resolve_model_id("anymodel", "google/gemini-image", "image")
-        == "am/gpt-image-2"
+        == "cx/gpt-image-2"
     )
 
 

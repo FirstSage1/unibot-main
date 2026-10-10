@@ -1,12 +1,20 @@
 """Проверки AI, оплаты и истории карточки на изолированной БД."""
 
 import asyncio
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config.yaml_config import BillingConfig, CardConfig, ModelConfig, YamlConfig
+from src.config.yaml_config import (
+    BillingConfig,
+    CardConfig,
+    CostConfig,
+    ModelConfig,
+    YamlConfig,
+)
+from src.core.exceptions import ModelTemporarilyUnavailableError
 from src.db.models.generation import GenerationDBStatus
 from src.db.models.user import User
 from src.db.repositories.generation_repo import GenerationRepository
@@ -34,6 +42,10 @@ def service(ai: MagicMock) -> ProductCardService:
                 model_id="vision",
                 generation_type=GenerationType.CHAT,
                 price_tokens=0,
+                cost=CostConfig(
+                    input_tokens_rub_per_1k=1,
+                    output_tokens_rub_per_1k=2,
+                ),
             ),
             "edit": ModelConfig(
                 provider="test",
@@ -56,23 +68,36 @@ def service(ai: MagicMock) -> ProductCardService:
 async def test_suggest_sends_reference_and_validates_json(
     service: ProductCardService,
     ai: MagicMock,
+    db_session: AsyncSession,
+    test_user: User,
 ) -> None:
     """Анализ получает само фото, а не только текст запроса."""
     ai.generate.return_value = GenerationResult(
         status=GenerationStatus.SUCCESS,
         content=make_ideas().model_dump_json(),
+        usage={"prompt_tokens": 100, "completion_tokens": 200},
     )
-    ideas = await service.suggest(b"photo")
+    ideas = await service.suggest(db_session, test_user.telegram_id, b"photo")
     assert len(ideas.ideas) == 3
     request = ai.generate.call_args.kwargs
     assert request["messages"][0]["content"][1]["image_url"]["url"].startswith(
         "data:image/jpeg;base64,"
     )
+    generation = await GenerationRepository(db_session).get_last_generation(
+        test_user.id, "chat"
+    )
+    assert generation is not None
+    assert generation.status == GenerationDBStatus.COMPLETED
+    assert generation.cost_rub == Decimal("0.5")
+    assert generation.tokens_charged == 0
+    assert test_user.balance == 1000
 
 
 async def test_bad_analysis_does_not_invent_fallback(
     service: ProductCardService,
     ai: MagicMock,
+    db_session: AsyncSession,
+    test_user: User,
 ) -> None:
     """Неясное фото требует повторной загрузки, а не случайных сцен."""
     ai.generate.return_value = GenerationResult(
@@ -80,7 +105,11 @@ async def test_bad_analysis_does_not_invent_fallback(
         content='{"product":"", "ideas":[]}',
     )
     with pytest.raises(CardError, match="card_analysis_error"):
-        await service.suggest(b"photo")
+        await service.suggest(db_session, test_user.telegram_id, b"photo")
+    assert (
+        await GenerationRepository(db_session).count_pending_generations(test_user.id)
+        == 0
+    )
 
 
 async def test_charge_only_after_delivery(
@@ -111,9 +140,22 @@ async def test_charge_only_after_delivery(
     assert ai.generate.call_args.kwargs["image_data"] == b"photo"
 
 
-@pytest.mark.parametrize("failure", [OSError("доставка"), asyncio.CancelledError()])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        OSError("доставка"),
+        asyncio.CancelledError(),
+        ModelTemporarilyUnavailableError(
+            "Модель временно недоступна",
+            provider="anymodel",
+            model_id="cx/gpt-image-2",
+            is_retryable=True,
+        ),
+    ],
+)
 async def test_failed_delivery_never_charges(
     service: ProductCardService,
+    ai: MagicMock,
     db_session: AsyncSession,
     test_user: User,
     failure: BaseException,
@@ -124,6 +166,8 @@ async def test_failed_delivery_never_charges(
         test_user.telegram_id,
         test_user.balance,
     )
+    if isinstance(failure, ModelTemporarilyUnavailableError):
+        ai.generate.side_effect = failure
     with pytest.raises(type(failure)):
         await service.generate(
             db_session, telegram_id, b"photo", "промпт", AsyncMock(side_effect=failure)

@@ -35,6 +35,7 @@ from src.core.exceptions import (
     AIServiceError,
     DatabaseError,
     GenerationError,
+    ModelTemporarilyUnavailableError,
 )
 from src.db.base import DatabaseSession
 from src.services.card_prompts import IDEA_COUNT, CardIdeas
@@ -72,6 +73,9 @@ async def handle_product_photo(
     l10n: Localization,
     bot: Bot,
     card_service: ProductCardService | None = None,
+    session_factory: Callable[
+        [], AbstractAsyncContextManager[AsyncSession]
+    ] = DatabaseSession,
 ) -> None:
     """Показать идеи, основанные на анализе фотографии пользователя."""
     if not message.from_user or not message.photo:
@@ -84,9 +88,12 @@ async def handle_product_photo(
         file_id = message.photo[-1].file_id
         await state.set_data({"session_id": session_id, "image_file_id": file_id})
         await state.set_state(CardStates.analyzing)
+        processing: Message | None = None
         try:
             processing = await message.answer(l10n.get("card_analyzing"))
-            ideas = await service.suggest(await download_photo(bot, file_id))
+            image = await download_photo(bot, file_id)
+            async with session_factory() as session:
+                ideas = await service.suggest(session, message.from_user.id, image)
             if (await state.get_data()).get("session_id") != session_id:
                 return
             keyboard = InlineKeyboardMarkup(
@@ -113,8 +120,6 @@ async def handle_product_photo(
             )
             await state.update_data(ideas=ideas.model_dump(), menu_id=menu.message_id)
             await state.set_state(CardStates.waiting_for_idea)
-            with suppress(Exception):
-                await processing.delete()
         except asyncio.CancelledError:
             await report_error(message, l10n, "card_interrupted")
             await clear_session(state, session_id)
@@ -132,6 +137,12 @@ async def handle_product_photo(
             logger.warning("Анализ /card: %s", type(error).__name__, exc_info=False)
             await report_error(message, l10n, error_key(error))
             await clear_session(state, session_id)
+        finally:
+            # Удаляем статусный текст и после ошибки, чтобы чат не оставался
+            # в состоянии «анализирую» после завершения сценария.
+            if processing is not None:
+                with suppress(Exception):
+                    await processing.delete()
 
 
 @fsm_router.message(
@@ -174,6 +185,7 @@ async def handle_idea_selection(
         session_id = parts[1]
         service = card_service if card_service is not None else create_card_service()
         await state.set_state(CardStates.generating)
+        processing: Message | None = None
         try:
             ideas = CardIdeas.model_validate(data["ideas"])
             prompt = service.prompt(ideas, int(parts[2]))
@@ -199,11 +211,28 @@ async def handle_idea_selection(
                 await service.generate(
                     session, callback.from_user.id, image, prompt, deliver
                 )
-            with suppress(Exception):
-                await processing.delete()
         except asyncio.CancelledError:
             await report_error(message, l10n, "card_interrupted")
             raise
+        except ModelTemporarilyUnavailableError as error:
+            if await owns_session(state, session_id):
+                await state.set_state(CardStates.waiting_for_idea)
+                keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text=f"{index + 1}. {idea.title}",
+                                callback_data=f"card:{session_id}:{index}",
+                            )
+                        ]
+                        for index, idea in enumerate(
+                            CardIdeas.model_validate(data["ideas"]).ideas
+                        )
+                    ]
+                )
+                with suppress(TelegramAPIError):
+                    await message.edit_reply_markup(reply_markup=keyboard)
+            await report_error(message, l10n, error_key(error))
         except (
             CardError,
             OSError,
@@ -217,4 +246,7 @@ async def handle_idea_selection(
             logger.warning("Генерация /card: %s", type(error).__name__, exc_info=False)
             await report_error(message, l10n, error_key(error))
         finally:
+            if processing is not None:
+                with suppress(Exception):
+                    await processing.delete()
             await finish_generation(state, session_id)

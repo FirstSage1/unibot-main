@@ -2,13 +2,18 @@
 
 import base64
 import json
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 from openai import AsyncOpenAI
 
 from src.bot.handlers.card_runtime import error_key
-from src.core.exceptions import GenerationError, ImageNoOutputError
+from src.core.exceptions import (
+    GenerationError,
+    ImageNoOutputError,
+    ModelTemporarilyUnavailableError,
+)
 from src.providers.ai.base import GenerationType
 from src.providers.ai.openai_provider import OpenAIAdapter
 
@@ -36,7 +41,7 @@ async def test_image_request_preserves_prompt_and_reference(
     ) as client:
         adapter._client = client
         result = await adapter.generate(
-            "am/gpt-image-2",
+            "cx/gpt-image-2",
             "Создай фото термоса на столе.",
             generation_type=GenerationType.IMAGE_EDIT
             if with_reference
@@ -46,13 +51,17 @@ async def test_image_request_preserves_prompt_and_reference(
     payload = json.loads(requests[0].content)
     assert result.content == "data:image/png;base64,aW1hZ2U="
     assert payload["prompt"].endswith("Создай фото термоса на столе.")
-    assert payload["output_format"] == "png"
     assert payload["response_format"] == "b64_json"
+    assert "output_format" not in payload
+    assert "quality" not in payload
+    assert "size" not in payload
     if with_reference:
-        assert payload["images"] == [
+        assert payload["image"] == (
             "data:image/jpeg;base64," + base64.b64encode(b"reference").decode()
-        ]
+        )
+        assert "images" not in payload
     else:
+        assert "image" not in payload
         assert "images" not in payload
         assert "reference" not in payload["prompt"]
 
@@ -86,7 +95,7 @@ async def test_no_output_is_specific_and_never_retried(code: str) -> None:
         adapter._client = client
         with pytest.raises(GenerationError) as caught:
             await adapter.generate(
-                "am/gpt-image-2", "Товар", generation_type=GenerationType.IMAGE
+                "cx/gpt-image-2", "Товар", generation_type=GenerationType.IMAGE
             )
     assert len(requests) == 1
     if code == "image_no_output":
@@ -95,3 +104,56 @@ async def test_no_output_is_specific_and_never_retried(code: str) -> None:
         assert not caught.value.is_retryable
     else:
         assert not isinstance(caught.value, ImageNoOutputError)
+
+
+async def test_unavailable_model_returns_safe_error_without_sdk_retries() -> None:
+    """503 с Retry-After не тратит таймаут на скрытые повторные запросы."""
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            503,
+            headers={"Retry-After": "60"},
+            json={
+                "error": {
+                    "code": "service_unavailable",
+                    "message": "The selected model is temporarily unavailable",
+                    "type": "server_error",
+                }
+            },
+        )
+
+    adapter = OpenAIAdapter(api_key="test", base_url="https://anymodel.org/v1")
+    await adapter._client.close()
+    async with AsyncOpenAI(
+        api_key="test",
+        base_url="https://anymodel.org/v1",
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
+    ) as client:
+        adapter._client = client
+        with pytest.raises(ModelTemporarilyUnavailableError) as caught:
+            await adapter.generate(
+                "cx/gpt-image-2",
+                "Товар",
+                generation_type=GenerationType.IMAGE_EDIT,
+                image_data=b"reference",
+            )
+    assert len(requests) == 1
+    assert caught.value.is_retryable
+    assert error_key(caught.value) == "card_model_unavailable"
+
+
+async def test_model_candidates_are_checked_before_generation() -> None:
+    """Адаптер получает fallback-кандидатов до платного image-запроса."""
+    adapter = OpenAIAdapter(api_key="test", base_url="https://anymodel.org/v1")
+    adapter._catalog.candidates = AsyncMock(
+        return_value=["cx/gpt-image-2", "flow/nano-banana"]
+    )
+
+    candidates = await adapter.get_model_candidates(
+        "am/gpt-image-2", GenerationType.IMAGE_EDIT
+    )
+
+    assert candidates == ["cx/gpt-image-2", "flow/nano-banana"]
+    adapter._catalog.candidates.assert_awaited_once()

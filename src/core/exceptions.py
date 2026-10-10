@@ -206,6 +206,10 @@ class ImageNoOutputError(GenerationError):
     """Провайдер ответил на запрос, но не создал изображение."""
 
 
+class ModelTemporarilyUnavailableError(GenerationError):
+    """Провайдер временно не может обслужить выбранную модель."""
+
+
 class ProviderNotAvailableError(Exception):
     """Провайдер недоступен или не зарегистрирован.
 

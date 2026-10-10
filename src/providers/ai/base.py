@@ -231,6 +231,12 @@ class BaseProviderAdapter(ABC):
             f"Провайдер {self.provider_name} не поддерживает отслеживание статуса"
         )
 
+    async def get_model_candidates(
+        self, model_id: str, generation_type: GenerationType
+    ) -> list[str]:
+        """Вернуть модели для запроса с первым предпочтительным вариантом."""
+        return [model_id]
+
     async def cancel_prediction(self, prediction_id: str) -> bool:
         """Отменить долгую генерацию.
 

@@ -326,6 +326,7 @@ card_analysis_error: "Could not identify the product or prepare three ideas. Sen
 card_failed: "Could not complete the product card. Try again using /card."
 card_interrupted: "Product card creation was interrupted. Restart with /card."
 card_busy: "Your previous generation is still running. Please wait."
+card_model_unavailable: "The AI model is temporarily unavailable. No bot tokens were charged for the photo. Wait at least a minute and select an idea again. For a correction, resend your change as a new message."
 card_insufficient_balance: "Not enough tokens for this photo. Check /balance and restart with /card."
 
 # AI editing error

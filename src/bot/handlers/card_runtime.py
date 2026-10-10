@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import Message
 
 from src.bot.states.card import CardStates
-from src.core.exceptions import ImageNoOutputError
+from src.core.exceptions import ImageNoOutputError, ModelTemporarilyUnavailableError
 from src.services.product_card import CardError, ProductCardService
 from src.utils.i18n import Localization
 from src.utils.logging import get_logger
@@ -47,6 +47,8 @@ async def owns_session(state: FSMContext, session_id: str) -> bool:
 async def finish_generation(state: FSMContext, session_id: str) -> None:
     """Сохранить последнее доставленное фото для следующих правок."""
     if await owns_session(state, session_id):
+        if await state.get_state() == CardStates.waiting_for_idea.state:
+            return
         if (await state.get_data()).get("result_file_id"):
             await state.set_state(CardStates.waiting_for_correction)
         else:
@@ -66,6 +68,8 @@ def error_key(error: Exception) -> str:
     logger.warning("Сбой /card: %s", type(error).__name__)
     if isinstance(error, ImageNoOutputError):
         return "card_image_no_output"
+    if isinstance(error, ModelTemporarilyUnavailableError):
+        return "card_model_unavailable"
     return str(error) if isinstance(error, CardError) else "card_failed"
 
 

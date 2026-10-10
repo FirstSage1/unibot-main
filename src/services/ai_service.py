@@ -1,13 +1,19 @@
 """Сервис для оркестрации AI-генераций."""
 
-from typing import Any
+import inspect
+from typing import Any, cast
 
 from src.config.models import AIProvidersSettings
 from src.config.yaml_config import (
     ModelConfig,
     YamlConfig,
 )
-from src.core.exceptions import ModelNotFoundError, ProviderNotAvailableError
+from src.core.exceptions import (
+    GenerationError,
+    ModelNotFoundError,
+    ModelTemporarilyUnavailableError,
+    ProviderNotAvailableError,
+)
 from src.providers.ai import BaseProviderAdapter, GenerationResult
 from src.providers.ai.registry import get_registry
 from src.utils.logging import get_logger
@@ -94,8 +100,9 @@ class AIService:
         if generation_type == "chat":
             return "cx/gpt-5.6-terra"
         if generation_type in {"image", "image_edit"}:
-            # Старый cx-маршрут перенаправлял запросы на снятую модель gpt-6-sol.
-            return "am/gpt-image-2"
+            # Маршрут проверен по каталогу AnyModel: am/gpt-image-2 отсутствует,
+            # для этого семейства опубликован cx/gpt-image-2.
+            return "cx/gpt-image-2"
         return model_id
 
     async def generate(
@@ -128,18 +135,50 @@ class AIService:
             model_config.generation_type.value,
         )
 
-        result = await adapter.generate(
-            model_id=resolved_model_id,
-            prompt=prompt,
-            generation_type=model_config.generation_type,
-            **params,
+        candidate_result = adapter.get_model_candidates(
+            resolved_model_id, model_config.generation_type
         )
+        if inspect.isawaitable(candidate_result):
+            candidate_result = await cast("Any", candidate_result)
+        candidates = (
+            [item for item in candidate_result if isinstance(item, str)]
+            if isinstance(candidate_result, list)
+            else [resolved_model_id]
+        )
+        if not candidates:
+            raise ModelTemporarilyUnavailableError(
+                "Не найдена доступная модель",
+                provider=resolved_provider,
+                model_id=resolved_model_id,
+                is_retryable=True,
+            )
+        for candidate in candidates:
+            try:
+                result = await adapter.generate(
+                    model_id=candidate,
+                    prompt=prompt,
+                    generation_type=model_config.generation_type,
+                    **params,
+                )
+                break
+            except GenerationError as error:
+                if not error.is_retryable or candidate == candidates[-1]:
+                    raise
+                logger.warning("Модель %s недоступна, пробуем следующую", candidate)
+        else:
+            raise ModelTemporarilyUnavailableError(
+                "Не найдена доступная модель",
+                provider=resolved_provider,
+                model_id=resolved_model_id,
+                is_retryable=True,
+            )
 
         logger.debug(
             "Генерация завершена: model_key=%s, status=%s",
             model_key,
             result.status.value,
         )
+        result.raw_response["model_id"] = candidate
         return result
 
     def get_available_models(self) -> dict[str, ModelConfig]:
