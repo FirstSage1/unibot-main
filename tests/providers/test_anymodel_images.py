@@ -36,7 +36,7 @@ async def test_image_request_preserves_prompt_and_reference(
     ) as client:
         adapter._client = client
         result = await adapter.generate(
-            "cx/gpt-image-2",
+            "am/gpt-image-2",
             "Создай фото термоса на столе.",
             generation_type=GenerationType.IMAGE_EDIT
             if with_reference
@@ -86,7 +86,7 @@ async def test_no_output_is_specific_and_never_retried(code: str) -> None:
         adapter._client = client
         with pytest.raises(GenerationError) as caught:
             await adapter.generate(
-                "cx/gpt-image-2", "Товар", generation_type=GenerationType.IMAGE
+                "am/gpt-image-2", "Товар", generation_type=GenerationType.IMAGE
             )
     assert len(requests) == 1
     if code == "image_no_output":

@@ -94,7 +94,8 @@ class AIService:
         if generation_type == "chat":
             return "cx/gpt-5.6-terra"
         if generation_type in {"image", "image_edit"}:
-            return "cx/gpt-image-2"
+            # Старый cx-маршрут перенаправлял запросы на снятую модель gpt-6-sol.
+            return "am/gpt-image-2"
         return model_id
 
     async def generate(

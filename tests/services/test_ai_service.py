@@ -305,7 +305,7 @@ def test_ai_service_is_provider_available_true(
     )
     assert (
         service._resolve_model_id("anymodel", "google/gemini-image", "image")
-        == "cx/gpt-image-2"
+        == "am/gpt-image-2"
     )
 
 
